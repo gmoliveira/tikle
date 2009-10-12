@@ -1,0 +1,178 @@
+############################################################
+# Script para descarte de N% de pacotes de um protocolo    #
+# específico. Com gatilho temporal, sem gatilho temporal,  #
+# com gatilho por número de pacotes, e com gatilho baseado #
+# em um estado específico de um host, respectivamente.     #
+############################################################
+
+@143.54.10.114
+start:
+  after (300s) do
+    sctp drop 5%;
+  end
+stop:
+  after (500s);
+
+@143.54.10.130
+start:
+  sctp drop 5%;
+stop:
+  after (500s);
+
+@143.54.10.226
+start:
+  after (200p) do
+    sctp drop 5%;
+  end
+stop:
+  after (10000p);
+
+@143.54.10.56
+start:
+  after (hostFLAG) do
+    sctp drop 5%;
+  end
+stop:
+  after (400s);
+
+#####################################################
+# Script para injeção de falhas em multiprotocolo.  #
+# Com gatilho temporal, sem gatilho temporal e com  #
+# gatilho por # número de pacotes, respectivamente. #
+#####################################################
+
+@143.54.10.114
+start:
+  after (50s) do
+    for each (tcp, udp) do
+      tcp duplicate 10%;
+      udp delay 2ms;
+    end
+  end
+stop:
+  after (300s);
+
+@143.54.10.130
+start:
+  for each (tcp, udp) do
+    tcp duplicate 10%;
+    udp delay 2ms;
+  end
+stop:
+  after (500s);
+
+@143.54.10.226
+start:
+  after (350p) do
+    for (tcp, udp) do
+      tcp duplicate 10%;
+      udp delay 2ms;
+    end
+  end
+stop:
+  after (20000p);
+
+###################################################
+# Script para emular particionamento fixo de rede #
+###################################################
+
+@143.54.10.114
+start:
+  after (100s) do
+    while (500s) do
+      if (%ip is equal 143.54.10.130) then
+        tcp drop 100%;
+      else
+        tcp drop 3%;
+      end if
+    end
+    tcp drop 5%;
+  end
+stop:
+ after (600s);
+
+@143.54.10.226
+start:
+  after (100s) do
+    while (500s) do
+      if (%ip is equal 143.54.10.13) then
+        sctp drop 100%;
+      else
+        sctp drop 3%;
+      end if
+    end
+    sctp drop 5%;
+  end
+stop:
+ after (600s);
+
+###################################################
+# Script para execução de ações baseadas em um    #
+# estado específico do sistema. OBS: precisa      #
+# ser definido pelo usuário. ele força um estado  #
+# em um determinado host e espera que outro nodo  #
+# identifique o mesmo e  execute suas ações.      #
+# Gatilho baseado no estado de um host específico #
+###################################################
+
+@143.54.10.114
+start:
+  after (300s) do
+    udp duplicate 4%;
+  end
+  set localhost -> hostFLAG;
+stop:
+  after (900s);
+
+@143.54.10.130
+start:
+  after (hostFLAG) do
+    udp delay 4ms;
+  end
+stop:
+  after (1000s);
+
+@143.54.10.56
+start:
+  after (300s) do
+    if (hostFLAG) then
+      udp drop 5%;
+    end if
+  end
+stop:
+  after (500s);
+
+#################################################
+# Script voltado para falhas de mobilidade      #
+# onde o drop é gradativo. O primeiro deles     #
+# varia de 1 a 100 aleatoriamente até entrar    #
+# em colapso (100), enquanto o segundo varia    #
+# de do valor especificado pelo usuário em até  #
+# 5 unidades percentuais para mais e para menos #
+# para dar a idéia de movimentação do mobile.   #
+# OBS: apenas quando for 100% o sistema entra   #
+# em colapso, nos demais será # aguardada a     #
+# estabilidade do sistema pela # aleatoriedade  #
+# probabilística das ações.                     #
+#################################################
+
+@143.54.10.114
+start:	
+  after (250s) do
+    tcp drop progressive 100%;
+  end
+stop:
+  after (400s);
+
+@143.54.10.130
+start:
+  after (250s) do
+    tcp duplicate progressive 15%;
+  end
+stop:
+  after (400s);
+
+
+
+if (%device is equal 'foo') then
+if (%device is not equal 'foo' then

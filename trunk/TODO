@@ -1,0 +1,5 @@
+- (brainstorming) develop a virtual synchronism;
+- (in development) support other communication faults such as drop, delay, duplication and corruption of a message;
+- (in development) develop a logging system to support manager analysis after execution;
+- (ready to run) use JGroups to validate our tool;
+- (dead) provide UML descriptions;
