@@ -1,7 +1,0 @@
-parser.c
-parser.h
-scanner.c
-*.o
-lemon
-dispatcher
-example
