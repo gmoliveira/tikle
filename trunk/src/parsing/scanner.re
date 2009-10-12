@@ -50,7 +50,8 @@ int scan(scanner_state *s, scanner_token *token)
 	re2c:yyfill:enable = 0;	
 	
 	NUMBER         = [0-9]+;
-	SPACES         = [ \r\n\t]+;
+	NEWLINE        = [\n];
+	SPACES         = [ \r\t]+;
 	COMMENT        = [#][^\r\n]*;
 	QUOTED_STRING  = (['][^']*[']|["][^"]*["]);
 	STRING         = [A-Za-z]+;
@@ -67,6 +68,7 @@ int scan(scanner_state *s, scanner_token *token)
 	'}' { return T_RBRACES; }
 	'->' { return T_ARROW; }
 	
+	NEWLINE { return SCANNER_NEWLINE; }
 	SPACES  { return SCANNER_IGNORE; }
 	COMMENT { return SCANNER_IGNORE; }
 
@@ -83,7 +85,7 @@ int scan(scanner_state *s, scanner_token *token)
 		token->type = VAR;
 		token->data.num = VAR_DEVICE;
 		return T_DEVICE_VAR;
-	}
+	}	
 	
 	QUOTED_STRING {
 		char *tmp;

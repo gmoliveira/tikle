@@ -34,7 +34,7 @@
 }
 
 %syntax_error {
-	printf("- syntax error\n");
+	pdata->error = 1;
 }
 %parse_failure {
 	printf("- parse failure\n");

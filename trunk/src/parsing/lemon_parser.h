@@ -64,6 +64,8 @@ typedef struct _parser_data {
 	unsigned int num_allocs;
 	faultload_op **commands;
 	faultload_num_type occur_type;
+	short int error;
+	unsigned int line;
 	struct _ips {
 		short int num;
 		struct _info {

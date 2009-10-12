@@ -42,6 +42,8 @@ faultload_op **faultload_parser(char *s)
 	memset(pdata.ip_tmp.ips, 0, sizeof(pdata.ip_tmp.ips));
 	pdata.in_label = 0;
 	pdata.label = 0;
+	pdata.line = 1;
+	pdata.error = 0;
 	pdata.occur_type = 0;
 	pdata.protocol = 0;
 	
@@ -49,6 +51,8 @@ faultload_op **faultload_parser(char *s)
 
 	while (SCANNER_EOF != (tok = scan(state, token))) {
 		switch (tok) {
+			case SCANNER_NEWLINE:
+				pdata.line++;
 			case SCANNER_IGNORE:
 				/* Whitespaces */
 				break;
@@ -57,6 +61,10 @@ faultload_op **faultload_parser(char *s)
 				goto clean;
 			default:
 				if (tok) {
+					if (pdata.error == 1) {
+						printf("Syntax error before: '%.*s...' on line %d\n", 15, state->end, pdata.line);
+						return NULL;
+					}
 					CALL_PARSER();
 				} else {		
 					printf("Unknown error [%d]\n", tok);
