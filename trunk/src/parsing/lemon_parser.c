@@ -8,6 +8,32 @@
 #include "parser.h"
 #include "lemon_parser.h"
 
+/*
+ * Print error message
+ */
+static void faultload_error(parser_data *pdata, scanner_state **state)
+{
+	switch (pdata->error) {
+		case 1:
+			printf("Syntax error before: '%.*s...' on line %d\n", 15, (*state)->end, pdata->line);
+			break;
+		case 2:
+			printf("Undeclared ip found on line %d\n", pdata->line);
+			break;
+		case 3:
+			printf("Unknown character '%.*s' on line %d\n", 1, (*state)->end, pdata->line);
+			break;
+		default:
+			if (pdata->error) {
+				printf("Unknown error on line %d\n", pdata->line);
+			}
+			break;
+	}	
+}
+
+/*
+ * Parsing
+ */
 faultload_op **faultload_parser(char *s)
 {
 	int tok;
@@ -57,17 +83,20 @@ faultload_op **faultload_parser(char *s)
 				/* Whitespaces */
 				break;
 			case SCANNER_ERROR:
-				puts("Char não esperado!");
-				goto clean;
+				pdata.error = 3;
+				faultload_error(&pdata, &state);
+				return NULL;
 			default:
 				if (tok) {
-					if (pdata.error == 1) {
-						printf("Syntax error before: '%.*s...' on line %d\n", 15, state->end, pdata.line);
+					if (pdata.error) {
+						faultload_error(&pdata, &state);
 						return NULL;
 					}
 					CALL_PARSER();
-				} else {		
-					printf("Unknown error [%d]\n", tok);
+				} else {
+					pdata.error = -1;
+					faultload_error(&pdata, &state);
+					return NULL;
 				}
 				break;
 		}
@@ -87,7 +116,6 @@ faultload_op **faultload_parser(char *s)
 		}
 	}
 
-clean:
 	PARSER_FREE();
 	
 	return pdata.commands;

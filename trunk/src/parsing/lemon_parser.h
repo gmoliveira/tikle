@@ -179,10 +179,15 @@ faultload_op **faultload_parser(char *s);
 #define CHECK_USED_IP(_ip)                             \
 	if (pdata->ips.num) {                              \
 		int i = pdata->ips.num;                        \
+		int found = 0;                                 \
 		while (i--) {                                  \
 			if ((_ip) == pdata->ips.arr[i].ip) {       \
 				pdata->ips.arr[i].used++;              \
+				found = 1;                             \
 			}                                          \
+		}                                              \
+		if (found == 0) {                              \
+			pdata->error = 2;                          \
 		}                                              \
 	}
 
