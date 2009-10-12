@@ -76,11 +76,11 @@ static const char *op_types[] = {
 
 int main(int argc, char **argv)
 {
-	int fdin, partition_num_ips = 0, tikle_sock_client, tikle_sock_server, 
-		tikle_log_sock_server, broadcast = 1, i = 0, j = 0, tikle_num_replies = 0,
-		tikle_err, return_val, numreqs = 30, n;
+	int fdin, partition_num_ips = 0, tikle_sock_client, tikle_sock_server;
+	int /*tikle_log_sock_server, tikle_log_server_addr,*/ tikle_num_replies = 0;
+	int tikle_err, return_val, numreqs = 30, broadcast = 1, n, i = 0, j = 0;
 	faultload_op **faultload, **faultload_pp, *faultload_p, *partition_ips = NULL;
-	struct sockaddr_in tikle_client_addr, tikle_server_addr, tikle_log_server_addr;
+	struct sockaddr_in tikle_client_addr, tikle_server_addr;
 	char *source, tikle_reply[15];
 	socklen_t tikle_socklen;
 	struct stat statbuf;
@@ -146,23 +146,37 @@ int main(int argc, char **argv)
 		partition_num_ips = (*faultload)->op_value[0].array.count;
 		faultload++;
 	}
-			
+		
+	/* Sending opcode information */	
 	while (faultload && *faultload) {
 		faultload_p = *faultload;
 		
-		/* Sending opcode information */
+		/* When using @host, only send the information to the host specified */
 		if (faultload_p->opcode == HOST) {
 			tikle_client_addr.sin_addr.s_addr = (in_addr_t) faultload_p->op_value[0].num;
+			
+			/* Send the number of ips envolved in the experiment */
+			sendto(tikle_sock_client, &partition_num_ips, sizeof(int), 0,
+				(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));
 		} else {
 			int i = 0;
-			
+						
 			do {
 				if (partition_ips) {
-					/* Send the information for each ips declared 
+					/* 
+					 * Send the information for each ips declared 
 					 * on @declare { } block, when used.
 					 */
 					tikle_client_addr.sin_addr.s_addr = (in_addr_t) partition_ips->op_value[0].array.nums[i];
-					/* printf("Sending to: %ld\n", partition_ips->op_value[0].array.nums[i]); */
+				
+					if (partition_ips == *(faultload-1)) {
+						/* 
+						 * Send the number of ips envolved in the experiment
+						 * (i.e. the ones listed in @declare)
+						 */
+						sendto(tikle_sock_client, &partition_num_ips, sizeof(int), 0,
+							(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));
+					}
 				}
 
 				sendto(tikle_sock_client, &faultload_p->opcode, sizeof(faultload_opcode), 0, 

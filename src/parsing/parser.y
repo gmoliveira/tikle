@@ -50,6 +50,7 @@
 %destructor network { FREE_OP($$); }
 
 %type action {int}
+%type action2 {int}
 %type op_type {int}
 %type progressive_opt {int}
 %type protocol {int}

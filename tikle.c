@@ -1047,7 +1047,7 @@ static int tikle_sockudp_send(struct socket *sock,
  */
 static int tikle_sockudp_start(void)
 {
-	int size = -1, i = 0, tikle_err, trigger_count = 0;
+	int num_ips, size = -1, i = 0, tikle_err, trigger_count = 0;
 	static int count = 0;
 	char tikle_auth[15];
 
@@ -1106,6 +1106,15 @@ static int tikle_sockudp_start(void)
 
 	printk(KERN_INFO "- start------------------------------------\n");
 	memset(faultload, 0, sizeof(faultload));
+	
+	size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
+		&num_ips, sizeof(int));
+		
+	if (size < 0) {
+		printk(KERN_ERR "tikle alert: error %d while getting datagram\n", size);
+	} else {				
+		printk(KERN_INFO "tikle alert: received %d bytes\n", size);
+	}
 
 	while (1) {
 		switch (count) {
