@@ -110,6 +110,10 @@ int main(int argc, char **argv)
 	}
 
 	faultload_pp = faultload = faultload_parser(source);
+	
+	if (faultload == NULL) {
+		exit(0);
+	}
 
 	/*
 	 * create dispatcher socket to send faultloads through all the network (unicast)

@@ -33,6 +33,7 @@
 #define SCANNER_ERROR      -1
 #define SCANNER_IMPOSSIBLE -2
 #define SCANNER_IGNORE     -3
+#define SCANNER_NEWLINE    -4
 
 typedef struct _scanner_state {
 	char *start, *end, *ctx;
