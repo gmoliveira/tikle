@@ -1,11 +1,11 @@
-@declare {143.54.10.117};
+@declare {143.54.10.147};
 
 start:
   after (5s) do
-    partition {143.54.10.117};
+    partition {143.54.10.147};
   end
   after (10s) do
-    partition {143.54.10.117};
+    partition {143.54.10.147};
   end
 stop:
   after (15s);

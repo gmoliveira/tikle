@@ -104,6 +104,9 @@ struct tikle_log {
 
 static struct tikle_log tikle_logging;
 
+static int num_ips;
+static unsigned long *tikle_log_counters;
+
 /**
  * tausworthe seeds
  */
@@ -690,8 +693,21 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 {
 	struct sk_buff *sb = pskb /*, *duplicate_sb*/;
 	unsigned long array_local = 0, array_remote = 1;
-	int i, array, position;
+	int i = 0, array, position, log_found_flag = -1;
 	char *log;
+
+	/*
+	 * log counters dummy version
+	 */
+
+	for (; i < num_ips && tikle_log_counters[i * 3]; i++)
+		if (tikle_log_counters[i * 3] == ipip_hdr(sb)->saddr) {
+			log_found_flag = i;
+			break;
+		}
+		
+	if (log_found_flag < 0)
+		tikle_log_counters[i * 3] = ipip_hdr(sb)->saddr;
 
 	/*
 	 * log system syntax (in order):
@@ -723,7 +739,11 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	 * update log informations
 	 */
 
-	tikle_logging.total_packets++;	
+	tikle_logging.total_packets++;
+
+	tikle_log_counters[i * 3 + 1] += 1;
+
+	printk(KERN_INFO "tikle counters: %lu\n\n\n", tikle_log_counters[i * 3 + 1]);
 
 	/*
 	 * packets will be intercepted only if a timer is active. if
@@ -1047,7 +1067,7 @@ static int tikle_sockudp_send(struct socket *sock,
  */
 static int tikle_sockudp_start(void)
 {
-	int num_ips, size = -1, i = 0, tikle_err, trigger_count = 0;
+	int size = -1, i = 0, tikle_err, trigger_count = 0;
 	static int count = 0;
 	char tikle_auth[15];
 
@@ -1265,6 +1285,12 @@ next:
 
 	tikle_sockudp_send(tikle_comm->sock_send, &tikle_comm->addr_send,
 		"tikle-received", sizeof("tikle-received"));
+
+	/*
+	 * preparing log counters
+	 */
+
+	tikle_log_counters = kcalloc(num_ips * 3, sizeof(unsigned long), GFP_KERNEL);
 
 	/*
 	 * waiting for controller
