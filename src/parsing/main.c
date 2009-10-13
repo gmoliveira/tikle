@@ -369,7 +369,7 @@ int main(int argc, char **argv)
 			0, (struct sockaddr *)&tikle_log_server_addr, &tikle_socklen);
 			
 		printf("tikle alert: received log from %s\n", inet_ntoa(tikle_log_server_addr.sin_addr));
-		printf(" HOST           | IN | OUT\n");
+		printf(" HOST           | IN  | OUT\n");
 
 		for (i = 0; i < partition_num_ips; i++) {
 			printf("%-15s | %03lu | %03lu\n", inet_ntoa(*(struct in_addr*)&tikle_log_all[n][3*i]),

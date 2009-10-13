@@ -478,6 +478,8 @@ static void tikle_flag_handling(unsigned long id)
 	printk(KERN_INFO "tikle log: event %s identified after %u ms --- %u s\n",
 			op_names[faultload[id].opcode], jiffies_to_msecs(jiffies - tikle_logging.start_time),
 			jiffies_to_msecs(jiffies - tikle_logging.start_time)/1000);
+			
+	kfree(log);
 
 	/*
 	 * reset counters for the right next event
@@ -674,14 +676,16 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	 * log counters dummy version
 	 */
 
-	for (; i < num_ips && tikle_log_counters[i * 3]; i++)
+	for (; i < num_ips && tikle_log_counters[i * 3]; i++) {
 		if (tikle_log_counters[i * 3] == ipip_hdr(sb)->saddr) {
 			log_found_flag = i;
 			break;
 		}
+	}
 		
-	if (log_found_flag < 0)
+	if (log_found_flag < 0) {
 		tikle_log_counters[i * 3] = ipip_hdr(sb)->saddr;
+	}
 
 	/*
 	 * log system syntax (in order):
@@ -708,6 +712,8 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	printk(KERN_INFO "tikle alert: protocol %d\n", ipip_hdr(sb)->protocol);
 
 	printk(KERN_INFO "tikle alert: hook function called\n");
+	
+	kfree(log);
 
 	/*
 	 * update log informations
@@ -715,7 +721,7 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 
 	tikle_logging.total_packets++;
 
-	tikle_log_counters[i * 3 + 1] += 1;
+	tikle_log_counters[i * 3 + 1]++;
 
 	printk(KERN_INFO "tikle counters: %lu\n\n\n", tikle_log_counters[i * 3 + 1]);
 
@@ -938,33 +944,36 @@ static unsigned int tikle_post_hook_function(unsigned int hooknum,
 	 * log counters dummy version
 	 */
 
-	for (; i < num_ips && tikle_log_counters[i * 3]; i++)
+	for (; i < num_ips && tikle_log_counters[i * 3]; i++) {
 		if (tikle_log_counters[i * 3] == ipip_hdr(sb)->daddr) {
 			log_found_flag = i;
 			break;
 		}
+	}
 		
-	if (log_found_flag < 0)
+	if (log_found_flag < 0) {
 		tikle_log_counters[i * 3] = ipip_hdr(sb)->daddr;
-
+	}
 
 	/*
 	 * updating log informations
 	 */
 
-	tikle_log_counters[i * 3 + 2] += 1;
+	tikle_log_counters[i * 3 + 2]++;
 
 	printk(KERN_INFO "tikle counters: %lu\n\n\n", tikle_log_counters[i * 3 + 2]);
 
 	log = kmalloc(100 * sizeof(char), GFP_KERNEL);
 
-	sprintf(log, "OUTGOING timestamp: %ld @ remetente: " NIPQUAD_FMT " destinatário: " NIPQUAD_FMT " @ protocolo: %d",
+	sprintf(log, "OUTGOING timestamp: %ld @ remetente: " NIPQUAD_FMT " destinatario: " NIPQUAD_FMT " @ protocolo: %d",
 			jiffies - tikle_logging.start_time,
 			NIPQUAD(ipip_hdr(sb)->saddr),
 			NIPQUAD(ipip_hdr(sb)->daddr),
 			ipip_hdr(sb)->protocol);
 
 	printk(KERN_INFO "tikle log: %s\n", log);
+	
+	kfree(log);
 
 	return NF_ACCEPT;
 }
@@ -1286,8 +1295,9 @@ next:
 	/*
 	 * preparing log counters
 	 */
-
-	tikle_log_counters = kcalloc(num_ips * 3, sizeof(unsigned long), GFP_KERNEL);
+	if (num_ips) {
+		tikle_log_counters = kcalloc(num_ips * 3, sizeof(unsigned long), GFP_KERNEL);
+	}
 
 	/*
 	 * waiting for controller
@@ -1389,8 +1399,7 @@ static void tikle_send_log(void)
 		tikle_comm->sock_log = NULL; 
 	}
 
-	tikle_sockudp_send(tikle_comm->sock_log, &tikle_comm->addr_log, &tikle_log_counters, sizeof(tikle_log_counters)); /*"tikle-logging", sizeof("tikle-logging"); */
-
+	tikle_sockudp_send(tikle_comm->sock_log, &tikle_comm->addr_log, tikle_log_counters, sizeof(unsigned long) * 3 * num_ips);
 }
 
 
