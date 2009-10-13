@@ -107,6 +107,8 @@ static struct tikle_log tikle_logging;
 static int num_ips;
 static unsigned long *tikle_log_counters;
 
+static void tikle_send_log(void);
+
 /**
  * tausworthe seeds
  */
@@ -487,34 +489,6 @@ static void tikle_flag_handling(unsigned long id)
 }
 
 
-/*
- * after ending experiment, host must
- * send your counters to controller
- */
-/*static void tikle_send_log(void)
-{
-	int tikle_err;
-
-	if ((tikle_err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &tikle_comm->sock_log)) < 0) {
-		printk(KERN_ERR "tikle alert: error %d while creating sockudp\n", -ENXIO);
-	}
-
-	memset(&tikle_comm->addr_log, 0, sizeof(struct sockaddr));
-	tikle_comm->addr_log.sin_family = AF_INET;
-	tikle_comm->addr_log.sin_addr.s_addr = htonl(INADDR_ANY);
-	tikle_comm->addr_log.sin_port = htons(PORT_LOGGING);
-
-	if ((tikle_err = tikle_comm->sock_send->ops->connect(tikle_comm->sock_send,(struct sockaddr *)&tikle_comm->addr_send, sizeof(struct sockaddr), 0)) < 0) {
-		printk(KERN_ERR "tikle alert: error %d while connecting to socket\n", -tikle_err);
-		sock_release(tikle_comm->sock_send);
-		tikle_comm->sock_log = NULL; 
-	}
-
-	tikle_sockudp_send(tikle_comm->sock_log, &tikle_comm->addr_log, "tikle-logging", sizeof("tikle-logging"));
-
-}
-*/
-
 /**
  * Stop the trigger.
  *
@@ -563,7 +537,7 @@ static void tikle_stop_trigger(unsigned int base)
 	printk(KERN_INFO "tikle log: execution ended after %u ms --- %u s\n",
 			jiffies_to_msecs(jiffies - tikle_logging.start_time), jiffies_to_msecs(jiffies - tikle_logging.start_time)/1000);
 
-	/* tikle_send_log(); */
+	tikle_send_log();
 
 }
 
@@ -958,6 +932,29 @@ static unsigned int tikle_post_hook_function(unsigned int hooknum,
 {
 	struct sk_buff *sb = pskb;
 	char *log;
+	int i = 0, log_found_flag = -1;
+
+	/*
+	 * log counters dummy version
+	 */
+
+	for (; i < num_ips && tikle_log_counters[i * 3]; i++)
+		if (tikle_log_counters[i * 3] == ipip_hdr(sb)->daddr) {
+			log_found_flag = i;
+			break;
+		}
+		
+	if (log_found_flag < 0)
+		tikle_log_counters[i * 3] = ipip_hdr(sb)->daddr;
+
+
+	/*
+	 * updating log informations
+	 */
+
+	tikle_log_counters[i * 3 + 2] += 1;
+
+	printk(KERN_INFO "tikle counters: %lu\n\n\n", tikle_log_counters[i * 3 + 2]);
 
 	log = kmalloc(100 * sizeof(char), GFP_KERNEL);
 
@@ -1028,7 +1025,7 @@ static int tikle_sockudp_recv(struct socket* sock,
  */
 static int tikle_sockudp_send(struct socket *sock,
 		struct sockaddr_in *addr,
-		unsigned char *buf, int len)
+		void /*unsigned char*/ *buf, int len)
 {
 	int size = 0;
 	struct iovec iov;
@@ -1367,6 +1364,35 @@ static void tikle_random(struct tikle_seeds *tikle_seed)
 	tikle_seed->s2 = TAUSWORTHE(tikle_seed->s2, 2, 25, 4294967288UL, 4);
 	tikle_seed->s3 = TAUSWORTHE(tikle_seed->s3, 3, 11, 4294967280UL, 17);
 }
+
+
+/*
+ * after ending experiment, host must
+ * send your counters to controller
+ */
+static void tikle_send_log(void)
+{
+	int tikle_err;
+
+	if ((tikle_err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &tikle_comm->sock_log)) < 0) {
+		printk(KERN_ERR "tikle alert: error %d while creating sockudp\n", -ENXIO);
+	}
+
+	memset(&tikle_comm->addr_log, 0, sizeof(struct sockaddr));
+	tikle_comm->addr_log.sin_family = AF_INET;
+	tikle_comm->addr_log.sin_addr.s_addr = htonl(INADDR_ANY);
+	tikle_comm->addr_log.sin_port = htons(PORT_LOGGING);
+
+	if ((tikle_err = tikle_comm->sock_send->ops->connect(tikle_comm->sock_send,(struct sockaddr *)&tikle_comm->addr_send, sizeof(struct sockaddr), 0)) < 0) {
+		printk(KERN_ERR "tikle alert: error %d while connecting to socket\n", -tikle_err);
+		sock_release(tikle_comm->sock_send);
+		tikle_comm->sock_log = NULL; 
+	}
+
+	tikle_sockudp_send(tikle_comm->sock_log, &tikle_comm->addr_log, &tikle_log_counters, sizeof(tikle_log_counters)); /*"tikle-logging", sizeof("tikle-logging"); */
+
+}
+
 
 /**
  * Module initialization routines.

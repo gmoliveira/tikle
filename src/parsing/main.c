@@ -77,10 +77,11 @@ static const char *op_types[] = {
 int main(int argc, char **argv)
 {
 	int fdin, partition_num_ips = 0, tikle_sock_client, tikle_sock_server;
-	int /*tikle_log_sock_server, tikle_log_server_addr,*/ tikle_num_replies = 0;
+	int tikle_log_sock_server, tikle_num_replies = 0;
 	int tikle_err, return_val, numreqs = 30, broadcast = 1, n, i = 0, j = 0;
 	faultload_op **faultload, **faultload_pp, *faultload_p, *partition_ips = NULL;
-	struct sockaddr_in tikle_client_addr, tikle_server_addr;
+	struct sockaddr_in tikle_client_addr, tikle_server_addr, tikle_log_server_addr;
+	unsigned long **tikle_log_all;
 	char *source, tikle_reply[15];
 	socklen_t tikle_socklen;
 	struct stat statbuf;
@@ -317,7 +318,9 @@ int main(int argc, char **argv)
 	 * wait for the end of experiment when
 	 * hosts will send logs to controller
 	 */
-/*
+
+
+
 	memset(&tikle_server_addr, 0, sizeof(struct sockaddr_in));
 
 	tikle_log_sock_server = socket(AF_INET, SOCK_DGRAM, 0);
@@ -327,12 +330,12 @@ int main(int argc, char **argv)
 	bind(tikle_log_sock_server, (struct sockaddr *)&tikle_log_server_addr, sizeof(tikle_log_server_addr));
 
 	for (tikle_num_replies = 0; tikle_num_replies < partition_num_ips; tikle_num_replies++) {
-		tikle_socklen = sizeof(tikle_server_addr);
+		tikle_socklen = sizeof(tikle_log_server_addr);
 		tikle_err = recvfrom(tikle_log_sock_server, tikle_reply, sizeof(tikle_reply), 0,
 				(struct sockaddr *)&tikle_log_server_addr, &tikle_socklen);
-		printf("tikle alert: received log from %s\n", inet_ntoa(tikle_server_addr.sin_addr));
+		printf("tikle alert: received log from %s\n", inet_ntoa(tikle_log_server_addr.sin_addr));
 	}
-*/
+
 	if (partition_ips) {
 		free(partition_ips->op_type);
 		free(partition_ips->op_value);
