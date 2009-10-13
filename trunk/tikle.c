@@ -57,19 +57,10 @@
 #undef __KERNEL__
 #include <linux/netfilter_ipv4.h>
 
-#define SECURE_FREE(_var) \
-	if (_var) {           \
-		kfree(_var);      \
-	}
-
-
 /**
  * New reference to proc_net
  */
 #define proc_net init_net.proc_net
-
-#define TAUSWORTHE(s,a,b,c,d) ((s&c)<<d) ^ (((s <<a) ^ s)>>b)
-#define LCG(n) (69069 * n)
 
 /**
  * Buffer control to /proc/net/tikle/shell
@@ -97,15 +88,10 @@ static struct delay_data {
 /**
  * Struct to store log data
  */
-struct tikle_log {
-	unsigned long start_time;
-	int total_packets, accept_packets, reject_packets;
-};
-
-static struct tikle_log tikle_logging;
+static tikle_log tikle_logging;
 
 static int num_ips;
-static unsigned long *tikle_log_counters;
+static unsigned long *tikle_log_counters = NULL;
 
 static void tikle_send_log(void);
 
@@ -131,11 +117,15 @@ static const char *op_names[] = {
  */
 struct tikle_timer {
 	struct timer_list trigger;
+	/*
+	 * The key on faultload[]
+	 */
 	unsigned int trigger_id;
-	unsigned int trigger_state; /*
-				     * The trigger state. 0 for inative,
-				     * 1 for active, 2 for killed.
-				     */
+	/*
+	 * The trigger state. 0 for inative,
+	 * 1 for active, 2 for killed.
+	 */
+	unsigned int trigger_state;
 };
 
 static struct tikle_timer *tikle_timers;
@@ -696,7 +686,7 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	 * ps: 100 is a 'sorted' value of my limited brain
 	 */
 
-	log = kmalloc(1000 * sizeof(char), GFP_KERNEL);
+	log = kmalloc(1000 * sizeof(char), GFP_KERNEL | GFP_ATOMIC);
  
 	sprintf(log, "INCOMING timestamp: %ld @ remetente: " NIPQUAD_FMT " destinatario: " NIPQUAD_FMT " @ protocolo: %d",
 			jiffies - tikle_logging.start_time,
@@ -1147,8 +1137,9 @@ static int tikle_sockudp_start(void)
 			case 0: /* Opcode */
 				size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 					&faultload[i].opcode, sizeof(faultload_opcode));
-				if (faultload[i].opcode == AFTER)
+				if (faultload[i].opcode == AFTER) {
 					trigger_count++;
+				}
 				printk(KERN_INFO "opcode: %d\n", faultload[i].opcode);
 				break;
 			case 1: /* Protocol */
@@ -1320,7 +1311,7 @@ next:
 		 * load faultload in memory
 		 */
 	
-		tikle_timers = kmalloc(trigger_count * sizeof(struct tikle_timer), GFP_KERNEL);
+		tikle_timers = kmalloc(trigger_count * sizeof(struct tikle_timer), GFP_KERNEL | GFP_ATOMIC);
 
 		i = 0;
 
@@ -1527,24 +1518,21 @@ static void __exit tikle_exit(void)
 	/* Check if the faultlets were loaded */
 	if (faultload[0].opcode) {
 		do {
-			printk(KERN_INFO "faultload[%d] free\n", i);
-
 			if (faultload[i].op_type) {
 				for (k = 0; k < faultload[i].num_ops; k++) {
 					if (faultload[i].op_type[k] == STRING) {
-						printk(KERN_INFO "free str\n");
 						SECURE_FREE(faultload[i].op_value[k].str.value);
 					}
 				}
-				printk(KERN_INFO "free op_type\n");
 				kfree(faultload[i].op_type);
-				printk(KERN_INFO "free op_value\n");
 				SECURE_FREE(faultload[i].op_value);
 			}		
 		} while (faultload[i++].block_type == 0);
 	}
+	
+	SECURE_FREE(tikle_log_counters);
 
-	printk (KERN_INFO "tikle alert: module unloaded\n");
+	printk(KERN_INFO "tikle alert: module unloaded\n");
 }
 
 module_init(tikle_init);

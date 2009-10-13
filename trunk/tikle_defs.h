@@ -109,4 +109,20 @@ typedef struct {
  */
 #define NUM_FAULTLOAD_OP 10
 
+/**
+ * Helper for secure kfree calls
+ */
+#define SECURE_FREE(_var) \
+	if (_var) {           \
+		kfree(_var);      \
+	}
+	
+#define TAUSWORTHE(s,a,b,c,d) ((s&c)<<d) ^ (((s <<a) ^ s)>>b)
+#define LCG(n) (69069 * n)
+
+typedef struct {
+	unsigned long start_time;
+	int total_packets, accept_packets, reject_packets;
+} tikle_log;
+
 #endif /* TIKLE_DEFS_H */
