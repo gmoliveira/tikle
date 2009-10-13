@@ -1,3 +1,29 @@
+/*
+ * tikle kernel module
+ * Copyright (c) 2009 Felipe 'ecl' Pena
+ *                    Gustavo 'nst' Oliveira
+ *
+ *   Contact us at:
+ *   		   #c2zlabs@freenode.net
+ *   		   www.c2zlabs.com
+ *
+ *   This file is part of tikle.
+ *
+ *   tikle is free software; you can redistribute it and/or modify it
+ *   under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 2 of the License, or
+ *   (at your option) any later version.
+ *
+ *   tikle is distributed in the hope that it will be useful, but
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with tikle; if not, write to the Free Software Foundation,
+ *   Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -112,6 +138,9 @@ int main(int argc, char **argv)
 
 	faultload_pp = faultload = faultload_parser(source);
 	
+	/*
+	 * Parser error
+	 */
 	if (faultload == NULL) {
 		exit(0);
 	}
@@ -240,7 +269,7 @@ int main(int argc, char **argv)
   	memset (&ifc, 0, sizeof(ifc));
   
   	ifc.ifc_buf = NULL;
-  	ifc.ifc_len =  sizeof(struct ifreq) * numreqs;
+  	ifc.ifc_len = sizeof(struct ifreq) * numreqs;
   	ifc.ifc_buf = malloc(ifc.ifc_len);
 
   	/*
@@ -266,29 +295,30 @@ int main(int argc, char **argv)
   	}
   	
   	if (return_val < 0) {
-  		fprintf (stderr, "ioctl:");		
-  		fprintf (stderr, "got error %d (%s)\n", errno, strerror(errno));
+  		fprintf(stderr, "ioctl:");		
+  		fprintf(stderr, "got error %d (%s)\n", errno, strerror(errno));
   		exit(1);
   	}  
   
   	/* loop through interfaces returned from SIOCGIFCONF */
   	ifr = ifc.ifc_req;
   	for (n = 0; n < ifc.ifc_len; n += sizeof(struct ifreq)) {
-  
   		/* Get the BROADCAST address */
   		return_val = ioctl(tikle_sock_client, SIOCGIFBRDADDR, ifr);
-  		if (return_val == 0 ) {
+  		
+		if (return_val == 0 ) {
   			if (ifr->ifr_broadaddr.sa_family == AF_INET) {
   				struct sockaddr_in *sin = (struct sockaddr_in *) &ifr->ifr_broadaddr;
+				
 				if (strcmp(ifr->ifr_name,"eth0") == 0) {
 					tikle_client_addr.sin_addr.s_addr = inet_addr(inet_ntoa(sin->sin_addr));
 					break;
 				}
   			} else {
-  				printf ("unsupported family for broadcast\n");
-  			}			
+  				printf("unsupported family for broadcast\n");
+  			}
   		} else {
-  			perror ("Get broadcast failed");
+  			perror("Get broadcast failed");
   		}
   
   		/* check the next entry returned */
@@ -302,8 +332,11 @@ int main(int argc, char **argv)
 
 	for (; tikle_num_replies < partition_num_ips;) {
 		tikle_socklen = sizeof(tikle_server_addr);
-		tikle_err = recvfrom(tikle_sock_server, tikle_reply, sizeof(tikle_reply), 0, (struct sockaddr *)&tikle_server_addr, &tikle_socklen);
+		tikle_err = recvfrom(tikle_sock_server, tikle_reply, sizeof(tikle_reply), 0,
+			(struct sockaddr *)&tikle_server_addr, &tikle_socklen);
+		
 		printf("tikle alert: received confirmation from %s\n", inet_ntoa(tikle_server_addr.sin_addr));
+		
 		if (strcmp(tikle_reply, "tikle-received") == 0) {
 			tikle_num_replies++;
 		}
@@ -311,8 +344,8 @@ int main(int argc, char **argv)
 
 	printf("tikle alert: all replies received\n\tStarting tests!\n");
 
-	sendto(tikle_sock_client, "tikle-start", sizeof("tikle-start"), 0, (struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));
-
+	sendto(tikle_sock_client, "tikle-start", sizeof("tikle-start"), 0,
+		(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));
 
 	/*
 	 * wait for the end of experiment when
@@ -336,10 +369,10 @@ int main(int argc, char **argv)
 			0, (struct sockaddr *)&tikle_log_server_addr, &tikle_socklen);
 			
 		printf("tikle alert: received log from %s\n", inet_ntoa(tikle_log_server_addr.sin_addr));
-		printf(" HOST | IN | OUT\n");
+		printf(" HOST           | IN | OUT\n");
 
 		for (i = 0; i < partition_num_ips; i++) {
-			printf("%-20s | %03lu | %03lu\n", inet_ntoa(*(struct in_addr*)&tikle_log_all[n][3*i]),
+			printf("%-15s | %03lu | %03lu\n", inet_ntoa(*(struct in_addr*)&tikle_log_all[n][3*i]),
 				tikle_log_all[n][3*i+1], tikle_log_all[n][3*i+2]);
 		}
 		
