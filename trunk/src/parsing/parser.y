@@ -2,7 +2,7 @@
 /* 
  * Tikle kernel module
  * Copyright (C) 2009  Felipe 'ecl' Pena
- *                       Gustavo 'nst' Oliveira
+ *                     Gustavo 'nst' Oliveira
  * 
  * Contact us at: #c2zlabs@freenode.net - www.c2zlabs.com
  *
