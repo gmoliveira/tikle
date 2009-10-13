@@ -318,9 +318,6 @@ int main(int argc, char **argv)
 	 * wait for the end of experiment when
 	 * hosts will send logs to controller
 	 */
-
-
-
 	memset(&tikle_server_addr, 0, sizeof(struct sockaddr_in));
 
 	tikle_log_sock_server = socket(AF_INET, SOCK_DGRAM, 0);
@@ -328,11 +325,16 @@ int main(int argc, char **argv)
 	tikle_log_server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	tikle_log_server_addr.sin_port = htons(12128);
 	bind(tikle_log_sock_server, (struct sockaddr *)&tikle_log_server_addr, sizeof(tikle_log_server_addr));
+	
+	tikle_log_all = (unsigned long **) calloc(partition_num_ips, sizeof(unsigned long *));	
+	tikle_socklen = sizeof(tikle_log_server_addr);
 
 	for (tikle_num_replies = 0; tikle_num_replies < partition_num_ips; tikle_num_replies++) {
-		tikle_socklen = sizeof(tikle_log_server_addr);
-		tikle_err = recvfrom(tikle_log_sock_server, tikle_reply, sizeof(tikle_reply), 0,
-				(struct sockaddr *)&tikle_log_server_addr, &tikle_socklen);
+		tikle_log_all[tikle_num_replies] = (unsigned long *) malloc(sizeof(unsigned long) * partition_num_ips);
+				
+		tikle_err = recvfrom(tikle_log_sock_server, tikle_log_all[tikle_num_replies],
+			sizeof(unsigned long) * partition_num_ips, 0, (struct sockaddr *)&tikle_log_server_addr, &tikle_socklen);
+		
 		printf("tikle alert: received log from %s\n", inet_ntoa(tikle_log_server_addr.sin_addr));
 	}
 
