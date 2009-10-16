@@ -105,7 +105,7 @@ int main(int argc, char **argv)
 	faultload_op **faultload, **faultload_pp, *faultload_p, *partition_ips = NULL;
 	struct sockaddr_in tikle_client_addr, tikle_server_addr, tikle_log_server_addr;
 	unsigned long **tikle_log_all;
-	char *source, tikle_reply[15];
+	char *source, tikle_reply[sizeof("tikle-received")];
 	socklen_t tikle_socklen;
 	struct stat statbuf;
 	struct ifconf ifc;
@@ -329,14 +329,19 @@ int main(int argc, char **argv)
 
 	for (; tikle_num_replies < partition_num_ips;) {
 		tikle_socklen = sizeof(tikle_server_addr);
-		tikle_err = recvfrom(tikle_sock_server, tikle_reply, sizeof(tikle_reply), 0,
+		tikle_err = recvfrom(tikle_sock_server, tikle_reply, sizeof("tikle-received"), 0,
 			(struct sockaddr *)&tikle_server_addr, &tikle_socklen);
 		
 		printf("tikle alert: received confirmation from %s\n", inet_ntoa(tikle_server_addr.sin_addr));
 		
-		if (strcmp(tikle_reply, "tikle-received") == 0) {
+		if (strncmp(tikle_reply, "tikle-received", sizeof("tikle-received")) == 0) {
 			tikle_num_replies++;
+		} else {
+			printf("tikle alert: 'tikle-received' has been not received from %s\n", inet_ntoa(tikle_server_addr.sin_addr));
 		}
+		
+		/* Clearing received message */
+		memset(tikle_reply, 0, sizeof(tikle_reply));
 	}
 
 	printf("tikle alert: all replies received\n\tStarting tests!\n");
