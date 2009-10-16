@@ -420,7 +420,7 @@ static void tikle_flag_handling(unsigned long id)
 {
 	char *log;
 
-	log = kmalloc(100 * sizeof(char), GFP_KERNEL);
+	log = kmalloc(100 * sizeof(char), GFP_KERNEL | GFP_ATOMIC);
 
 	/*
 	 * set the previous timer as 'killed'
@@ -949,7 +949,7 @@ static unsigned int tikle_post_hook_function(unsigned int hooknum,
 
 	printk(KERN_INFO "tikle counters: %lu\n\n\n", tikle_log_counters[i * 3 + 2]);
 
-	log = kmalloc(100 * sizeof(char), GFP_KERNEL);
+	log = kmalloc(100 * sizeof(char), GFP_KERNEL | GFP_ATOMIC);
 
 	sprintf(log, "OUTGOING timestamp: %ld @ remetente: " NIPQUAD_FMT " destinatario: " NIPQUAD_FMT " @ protocolo: %d",
 			jiffies - tikle_logging.start_time,
@@ -1061,7 +1061,7 @@ static int tikle_sockudp_start(void)
 {
 	int size = -1, i = 0, tikle_err, trigger_count = 0;
 	static int count = 0;
-	char tikle_auth[15];
+	char tikle_auth[sizeof("tikle-start")];
 
 	/*
 	 * define flags of the thread and run socket
@@ -1283,7 +1283,7 @@ next:
 	 * preparing log counters
 	 */
 	if (num_ips) {
-		tikle_log_counters = kcalloc(num_ips * 3, sizeof(unsigned long), GFP_KERNEL);
+		tikle_log_counters = kcalloc(num_ips * 3, sizeof(unsigned long), GFP_KERNEL | GFP_ATOMIC);
 	}
 
 	/*
@@ -1293,14 +1293,14 @@ next:
 
 	printk(KERN_ERR "tikle alert: waiting for authorization to start\n");
 
-	size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv, tikle_auth, sizeof(tikle_auth));
+	size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv, tikle_auth, sizeof("tikle-start"));
 	
 	printk(KERN_ERR "tikle alert: received \"%s\" from controller\n", tikle_auth);
 
 	if (size < 0) {
 		printk(KERN_ERR "tikle alert: error %d while getting authorization\n", size);
 		return 0;
-	} else if (strcmp(tikle_auth, "tikle-start") == 0) { 
+	} else if (strncmp(tikle_auth, "tikle-start", sizeof("tikle-start")) == 0) { 
 		printk(KERN_ERR "tikle alert: received permission to start execution\n");
 
 		/*
@@ -1341,8 +1341,7 @@ next:
 
 		tikle_trigger_handling();
 	} else {
-		printk(KERN_ERR "tikle alert: you do not have permission to start execution\n");
-		return 0;
+		printk(KERN_ERR "tikle alert: you do not have permission to start execution. received: '%s'\n", tikle_auth);
 	}
 	return 0;
 }
