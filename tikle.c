@@ -160,7 +160,7 @@ static unsigned long tikle_buffer_size = 0;
 /**
  * procfs structures.
  */
-static struct proc_dir_entry *tikle_main_proc_dir,    /* /proc/net/tikle       */
+static struct proc_dir_entry *tikle_main_proc_dir,    /* /proc/net/tikle */
 			     *tikle_shell_proc_entry; /* /proc/net/tikle/shell */
 
 
@@ -186,10 +186,7 @@ struct tikle_sockudp *tikle_comm = NULL;
  * @param offset 
  * @return number of bytes read
  */
-static ssize_t tikle_read(struct file *file,
-			     char *buffer,
-			     size_t length,
-			     loff_t * offset)
+static ssize_t tikle_read(struct file *file, char *buffer, size_t length, loff_t * offset)
 {
 	static int tikle_eof = 0;
 
@@ -233,11 +230,7 @@ static ssize_t tikle_read(struct file *file,
  * @param off
  * @return the number of bytes written.
  */
-static ssize_t
-tikle_write(struct file *file,
-		const char *buffer,
-		size_t len,
-		loff_t * off)
+static ssize_t tikle_write(struct file *file, const char *buffer, size_t len, loff_t * off)
 {
 	char command[len];
 
@@ -278,8 +271,7 @@ tikle_write(struct file *file,
  * @param op the operation
  * @return 0 on success EACCESS on error.
  */
-static int tikle_permission(struct inode *inode,
-				int op
+static int tikle_permission(struct inode *inode, int op
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,26)
 				, struct nameidata *idata
 #endif
@@ -296,7 +288,6 @@ static int tikle_permission(struct inode *inode,
 	 * but ONLY root may write (2, 34)
 	 * don't ask me why 34 and 36 too
 	 */
-
 	if (op == 36 || op == 4 || ((op == 34 || op == 2) && current_euid() == 0)) {
 		return 0;
 	}
@@ -304,7 +295,6 @@ static int tikle_permission(struct inode *inode,
 	/* 
 	 * else permission denied 
 	 */
-
 	return -EACCES;
 }
 
@@ -375,6 +365,32 @@ static struct inode_operations tikle_iops = {
 }
 */
 
+/**
+ * Free all memory used in faultload structure
+ */
+static void tikle_faultload_free(void)
+{
+	unsigned int i = 0, k;
+	
+	/* 
+	 * Checking if the faultlets were loaded
+	 */
+	if (faultload[0].opcode) {
+		printk(KERN_INFO "tikle log: Freeing faultload structure\n");
+		do {
+			if (faultload[i].op_type) {
+				for (k = 0; k < faultload[i].num_ops; k++) {
+					if (faultload[i].op_type[k] == STRING) {
+						SECURE_FREE(faultload[i].op_value[k].str.value);
+					}
+				}
+				kfree(faultload[i].op_type);
+				SECURE_FREE(faultload[i].op_value);
+			}		
+		} while (faultload[i++].block_type == 0);
+	}
+}
+
 
 /**
  * Function to write the final log to /tmp/tikle.log file.
@@ -427,8 +443,7 @@ static void tikle_flag_handling(unsigned long id)
 	 * and update the system flags with the
 	 * running trigger informations
 	 */
-
-	if (id > 0) {
+	if (id > 0 && tikle_timers[tikle_trigger_flag].trigger_state == 1) {
 		tikle_timers[tikle_trigger_flag].trigger_state = 2;
 		printk(KERN_INFO "tikle alert: killing timer %d\n", tikle_trigger_flag);
 
@@ -451,26 +466,29 @@ static void tikle_flag_handling(unsigned long id)
 
 	tikle_timers[tikle_trigger_flag].trigger_state = 1;
 
-	sprintf(log, "timestamp: %ld @ event: %s",
-			jiffies - tikle_logging.start_time, op_names[faultload[id].opcode]);
+	if (log == NULL) {
+		printk(KERN_INFO "tikle log: Unable to alloc memory to log\n");
+	} else {
+		sprintf(log, "timestamp: %ld @ event: %s",
+				jiffies - tikle_logging.start_time, op_names[faultload[id].opcode]);
 
-	printk(KERN_INFO "tikle alert: %s\n", log);
+		printk(KERN_INFO "tikle alert: %s\n", log);
 
-	tikle_write_to_file(log);
+		tikle_write_to_file(log);
 
-	printk(KERN_INFO "tikle alert: event on %u ms --- %u s\n",
-			jiffies_to_msecs(jiffies - tikle_logging.start_time), jiffies_to_msecs(jiffies - tikle_logging.start_time)/1000);
-			
-	printk(KERN_INFO "tikle log: event %s identified after %u ms --- %u s\n",
-			op_names[faultload[id].opcode], jiffies_to_msecs(jiffies - tikle_logging.start_time),
-			jiffies_to_msecs(jiffies - tikle_logging.start_time)/1000);
-			
-	kfree(log);
+		printk(KERN_INFO "tikle alert: event on %u ms --- %u s\n",
+				jiffies_to_msecs(jiffies - tikle_logging.start_time), jiffies_to_msecs(jiffies - tikle_logging.start_time)/1000);
+				
+		printk(KERN_INFO "tikle log: event %s identified after %u ms --- %u s\n",
+				op_names[faultload[id].opcode], jiffies_to_msecs(jiffies - tikle_logging.start_time),
+				jiffies_to_msecs(jiffies - tikle_logging.start_time)/1000);
+				
+		kfree(log);
+	}
 
 	/*
 	 * reset counters for the right next event
 	 */
-
 	tikle_logging.total_packets = 0;
 	tikle_logging.accept_packets = 0;
 	tikle_logging.reject_packets = 0;
@@ -507,7 +525,6 @@ static void tikle_stop_trigger(unsigned int base)
 	 * for more information go to:
 	 * http://www.makelinux.net/ldd3/chp-7-sect-4.shtml
 	 */
-
 	for (; jiffies <= (base + msecs_to_jiffies(faultload[tikle_timers[tikle_num_timers-1].trigger_id].op_value[0].num * 1000)););
 
 	nf_unregister_hook(&tikle_pre_hook);
@@ -515,18 +532,23 @@ static void tikle_stop_trigger(unsigned int base)
 
 	//nf_unregister_queue_handler(PF_INET, &qh);
 
-	sprintf(log, "timestamp: %ld @ execution ended", jiffies - tikle_logging.start_time);
+	if (log == NULL) {
+		printk(KERN_INFO "tikle_log: Unable to alloc memory to log\n");
+	} else {
+		sprintf(log, "timestamp: %ld @ execution ended", jiffies - tikle_logging.start_time);
 
-	tikle_write_to_file(log);
+		tikle_write_to_file(log);
 
-	printk(KERN_INFO "tikle alert: hook unregistered at %u ms --- %u s\n",
-			jiffies_to_msecs(jiffies - tikle_logging.start_time), jiffies_to_msecs(jiffies - tikle_logging.start_time)/1000);
+		printk(KERN_INFO "tikle alert: hook unregistered at %u ms --- %u s\n",
+				jiffies_to_msecs(jiffies - tikle_logging.start_time), jiffies_to_msecs(jiffies - tikle_logging.start_time)/1000);
 
-	printk(KERN_INFO "tikle log: execution ended after %u ms --- %u s\n",
-			jiffies_to_msecs(jiffies - tikle_logging.start_time), jiffies_to_msecs(jiffies - tikle_logging.start_time)/1000);
+		printk(KERN_INFO "tikle log: execution ended after %u ms --- %u s\n",
+				jiffies_to_msecs(jiffies - tikle_logging.start_time), jiffies_to_msecs(jiffies - tikle_logging.start_time)/1000);
 
-	tikle_send_log();
-
+		tikle_send_log();
+		
+		kfree(log);
+	}
 }
 
 
@@ -542,9 +564,9 @@ static void tikle_trigger_handling(void)
 	/*
 	 * setting up triggers
  	 */
-
+	printk(KERN_INFO "Registering triggers:\n");
+	
 	for (i = 0; i < tikle_num_timers; i++) {
-
 		init_timer(&tikle_timers[i].trigger);
 
 		tikle_timers[i].trigger.function = tikle_flag_handling;
@@ -553,28 +575,27 @@ static void tikle_trigger_handling(void)
 		 * send the next trigger ID, if actual trigger it is
 		 * not the latest, else send your own trigger ID
 		 */
-
 		if (tikle_timers[i].trigger_id < tikle_timers[tikle_num_timers-1].trigger_id) {
 			tikle_timers[i].trigger.data = tikle_timers[i+1].trigger_id;
 		} else {
 			tikle_timers[i].trigger.data = tikle_timers[i].trigger_id;
 		}
+		
+		printk(KERN_INFO "Registering timer %d; trigger_id=%d ; trigger_data=%ld\n",
+			i, tikle_timers[i].trigger_id, tikle_timers[i].trigger.data);
 
 		/*
 		 * calculate expire time to trigger
 		 * based on the experiment start time
-		 */
-		
+		 */		
 		base = jiffies;
 		tikle_timers[i].trigger.expires = base +
 			msecs_to_jiffies(faultload[tikle_timers[i].trigger_id].op_value[0].num * 1000);
 
 		if (tikle_timers[i].trigger_id == 0) { /* if timer corresponds to the first timer */
-
 			/*
 			 * register hook
 			 */
-
 			tikle_pre_hook.hook = &tikle_pre_hook_function;
 			tikle_pre_hook.hooknum = NF_IP_PRE_ROUTING;
 			tikle_pre_hook.pf = PF_INET;
@@ -598,14 +619,12 @@ static void tikle_trigger_handling(void)
 			 * to the last timer
 			 */
 
-		} else if (tikle_timers[i].trigger_id == tikle_timers[tikle_num_timers-1].trigger_id) {
-			
+		} else if (tikle_timers[i].trigger_id == tikle_timers[tikle_num_timers-1].trigger_id) {			
 			/*
 			 * unregister hook timer
 			 * this is done by a thread
 			 * to avoid console freezing
 			 */
-
 			stop = kthread_run((void *)tikle_stop_trigger, (unsigned int *)base, "thread stop trigger");
 		}
 
@@ -634,6 +653,7 @@ static void tikle_trigger_handling(void)
 		*/
 		add_timer(&tikle_timers[i].trigger);
 	}
+	printk(KERN_INFO "--------------------------------\n");
 }
 
 
@@ -661,16 +681,15 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	/*
 	 * log counters dummy version
 	 */
-
-	for (; i < num_ips && tikle_log_counters[i * 3]; i++) {
-		if (tikle_log_counters[i * 3] == ipip_hdr(sb)->saddr) {
+	for (; i < num_ips && tikle_log_counters[i*3]; i++) {
+		if (tikle_log_counters[i*3] == ipip_hdr(sb)->saddr) {
 			log_found_flag = i;
 			break;
 		}
 	}
 		
 	if (log_found_flag < 0) {
-		tikle_log_counters[i * 3] = ipip_hdr(sb)->saddr;
+		tikle_log_counters[i*3] = ipip_hdr(sb)->saddr;
 	}
 
 	/*
@@ -681,41 +700,39 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	 *
 	 * ps: 100 is a 'sorted' value of my limited brain
 	 */
-
 	log = kmalloc(1000 * sizeof(char), GFP_KERNEL | GFP_ATOMIC);
- 
-	sprintf(log, "INCOMING timestamp: %ld @ remetente: " NIPQUAD_FMT " destinatario: " NIPQUAD_FMT " @ protocolo: %d",
-			jiffies - tikle_logging.start_time,
-			NIPQUAD(ipip_hdr(sb)->saddr),
-			NIPQUAD(ipip_hdr(sb)->daddr),
-			ipip_hdr(sb)->protocol);
-
-
-	printk(KERN_INFO "tikle log: %s\n", log);
-
-	tikle_write_to_file(log);
-
-	printk(KERN_INFO "tikle alert: protocol %d\n", ipip_hdr(sb)->protocol);
-
-	printk(KERN_INFO "tikle alert: hook function called\n");
 	
-	kfree(log);
+	if (log == NULL) {
+		printk(KERN_INFO "tikle log: Unable to alloc memory to log\n");
+	} else {
+		sprintf(log, "INCOMING timestamp: %ld @ remetente: " NIPQUAD_FMT " destinatario: " NIPQUAD_FMT " @ protocolo: %d",
+				jiffies - tikle_logging.start_time,
+				NIPQUAD(ipip_hdr(sb)->saddr),
+				NIPQUAD(ipip_hdr(sb)->daddr),
+				ipip_hdr(sb)->protocol);
+
+		printk(KERN_INFO "tikle log: %s\n", log);
+
+		tikle_write_to_file(log);
+
+		printk(KERN_INFO "tikle alert: protocol %d\n", ipip_hdr(sb)->protocol);
+		printk(KERN_INFO "tikle alert: hook function called\n");		
+		kfree(log);
+	}
 
 	/*
 	 * update log informations
 	 */
-
 	tikle_logging.total_packets++;
 
-	tikle_log_counters[i * 3 + 1]++;
+	tikle_log_counters[i*3+1]++;
 
-	printk(KERN_INFO "tikle counters: %lu\n\n\n", tikle_log_counters[i * 3 + 1]);
+	printk(KERN_INFO "- tikle pre counters: %lu\n", tikle_log_counters[i*3+1]);
 
 	/*
 	 * packets will be intercepted only if a timer is active. if
 	 * it is, process packets according to the flagged trigger
 	 */
-
 	if (tikle_timers[tikle_trigger_flag].trigger_state != 1) {
 		tikle_logging.accept_packets++;	
 		return NF_ACCEPT;
@@ -725,6 +742,9 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	i = tikle_timers[tikle_trigger_flag].trigger_id;
 	
 	do {
+		printk(KERN_INFO "i=%d ; opcode: %d (%s) ; next_op=%d\n",
+			i, faultload[i].opcode, op_names[faultload[i].opcode], faultload[i].next_op);
+		
 		/* Opcode handlers */
 		switch (faultload[i].opcode) {
 			case HOST:
@@ -907,7 +927,7 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 				}
 				break;
 		}
-	} while (++i < faultload[tikle_trigger_flag].next_op);
+	} while (++i < faultload[tikle_timers[tikle_trigger_flag].trigger_id].next_op);
 
 	tikle_logging.accept_packets++;
 
@@ -929,37 +949,39 @@ static unsigned int tikle_post_hook_function(unsigned int hooknum,
 	/*
 	 * log counters dummy version
 	 */
-
-	for (; i < num_ips && tikle_log_counters[i * 3]; i++) {
-		if (tikle_log_counters[i * 3] == ipip_hdr(sb)->daddr) {
+	for (; i < num_ips && tikle_log_counters[i*3]; i++) {
+		if (tikle_log_counters[i*3] == ipip_hdr(sb)->daddr) {
 			log_found_flag = i;
 			break;
 		}
 	}
 		
 	if (log_found_flag < 0) {
-		tikle_log_counters[i * 3] = ipip_hdr(sb)->daddr;
+		tikle_log_counters[i*3] = ipip_hdr(sb)->daddr;
 	}
 
 	/*
 	 * updating log informations
 	 */
+	tikle_log_counters[i*3+2]++;
 
-	tikle_log_counters[i * 3 + 2]++;
-
-	printk(KERN_INFO "tikle counters: %lu\n\n\n", tikle_log_counters[i * 3 + 2]);
+	printk(KERN_INFO "- tikle post counters: %lu\n", tikle_log_counters[i*3+2]);
 
 	log = kmalloc(100 * sizeof(char), GFP_KERNEL | GFP_ATOMIC);
-
-	sprintf(log, "OUTGOING timestamp: %ld @ remetente: " NIPQUAD_FMT " destinatario: " NIPQUAD_FMT " @ protocolo: %d",
-			jiffies - tikle_logging.start_time,
-			NIPQUAD(ipip_hdr(sb)->saddr),
-			NIPQUAD(ipip_hdr(sb)->daddr),
-			ipip_hdr(sb)->protocol);
-
-	printk(KERN_INFO "tikle log: %s\n", log);
 	
-	kfree(log);
+	if (log == NULL) {
+		printk(KERN_INFO "tikle log: Unable to alloc memory to log\n");
+	} else {
+		sprintf(log, "OUTGOING timestamp: %ld @ remetente: " NIPQUAD_FMT " destinatario: " NIPQUAD_FMT " @ protocolo: %d",
+				jiffies - tikle_logging.start_time,
+				NIPQUAD(ipip_hdr(sb)->saddr),
+				NIPQUAD(ipip_hdr(sb)->daddr),
+				ipip_hdr(sb)->protocol);
+
+		printk(KERN_INFO "tikle log: %s\n", log);
+		
+		kfree(log);
+	}
 
 	return NF_ACCEPT;
 }
@@ -1020,7 +1042,7 @@ static int tikle_sockudp_recv(struct socket* sock,
  */
 static int tikle_sockudp_send(struct socket *sock,
 		struct sockaddr_in *addr,
-		void /*unsigned char*/ *buf, int len)
+		void *buf, int len)
 {
 	int size = 0;
 	struct iovec iov;
@@ -1115,7 +1137,6 @@ static int tikle_sockudp_start(void)
 	 * looping to receive data from other hosts
 	 * and after that sends a confirmation message
 	 */
-
 	printk(KERN_INFO "- start------------------------------------\n");
 	memset(faultload, 0, sizeof(faultload));
 	
@@ -1124,7 +1145,8 @@ static int tikle_sockudp_start(void)
 		
 	if (size < 0) {
 		printk(KERN_ERR "tikle alert: error %d while getting datagram\n", size);
-	} else {				
+	} else {
+		printk(KERN_INFO "num_ips=%d\n", num_ips);
 		printk(KERN_INFO "tikle alert: received %d bytes\n", size);
 	}
 
@@ -1151,7 +1173,7 @@ static int tikle_sockudp_start(void)
 			case 3: /* Number of ops */
 				size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 					&faultload[i].num_ops, sizeof(unsigned short int));
-				printk(KERN_INFO "num_ops [%d]\n", faultload[i].num_ops);
+				printk(KERN_INFO "num_ops: %d\n", faultload[i].num_ops);
 				break;
 			case 4: /* Operand types */
 				{
@@ -1165,7 +1187,7 @@ static int tikle_sockudp_start(void)
 						continue;
 					}
 					
-					faultload[i].op_type = kcalloc(faultload[i].num_ops, sizeof(faultload_op_type), GFP_KERNEL);
+					faultload[i].op_type = kcalloc(faultload[i].num_ops, sizeof(faultload_op_type), GFP_KERNEL | GFP_ATOMIC);
 
 					size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 						faultload[i].op_type, sizeof(faultload_op_type) * faultload[i].num_ops);
@@ -1179,14 +1201,14 @@ static int tikle_sockudp_start(void)
 				{
 					unsigned short int k;
 						
-					faultload[i].op_value = kcalloc(faultload[i].num_ops, sizeof(faultload_value_type), GFP_KERNEL);
+					faultload[i].op_value = kcalloc(faultload[i].num_ops, sizeof(faultload_value_type), GFP_KERNEL | GFP_ATOMIC);
 					size = 0;
 					for (k = 0; k < faultload[i].num_ops; k++) {
 						switch (faultload[i].op_type[k]) {
 							case STRING:
 								tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 									&faultload[i].op_value[k].str.length, sizeof(size_t));
-								faultload[i].op_value[k].str.value = (char*) kmalloc(faultload[i].op_value[k].str.length, GFP_KERNEL);
+								faultload[i].op_value[k].str.value = (char*) kmalloc(faultload[i].op_value[k].str.length, GFP_KERNEL | GFP_ATOMIC);
 								size += tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 								faultload[i].op_value[k].str.value, faultload[i].op_value[k].str.length);
 								
@@ -1273,7 +1295,6 @@ next:
 	 * sending confirmation of data received
 	 * (for control protocol stuffs)
 	 */
-
 	printk(KERN_INFO "tikle alert: sending confirmation of received data\n");
 
 	tikle_sockudp_send(tikle_comm->sock_send, &tikle_comm->addr_send,
@@ -1290,7 +1311,6 @@ next:
 	 * waiting for controller
 	 * authorization to start
 	 */
-
 	printk(KERN_ERR "tikle alert: waiting for authorization to start\n");
 
 	size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv, tikle_auth, sizeof("tikle-start"));
@@ -1299,14 +1319,16 @@ next:
 
 	if (size < 0) {
 		printk(KERN_ERR "tikle alert: error %d while getting authorization\n", size);
+		tikle_faultload_free();
+		SECURE_FREE(tikle_log_counters);
+		
 		return 0;
 	} else if (strncmp(tikle_auth, "tikle-start", sizeof("tikle-start")) == 0) { 
 		printk(KERN_ERR "tikle alert: received permission to start execution\n");
 
 		/*
 		 * load faultload in memory
-		 */
-	
+		 */	
 		tikle_timers = kmalloc(trigger_count * sizeof(struct tikle_timer), GFP_KERNEL | GFP_ATOMIC);
 
 		i = 0;
@@ -1330,18 +1352,21 @@ next:
 		 * calling trigger handling
 		 * to manage temporization
 	 	 */
-
 		printk(KERN_INFO "tikle alert: starting at %u ms --- %u s\n",
 				jiffies_to_msecs(jiffies), jiffies_to_msecs(jiffies)/1000);
 
 		tikle_logging.start_time = jiffies;
 
 		printk(KERN_INFO "tikle log: INIT at %u ms --- %u s\n",
-				jiffies_to_msecs(jiffies - tikle_logging.start_time), jiffies_to_msecs(jiffies - tikle_logging.start_time)/1000);
+				jiffies_to_msecs(jiffies - tikle_logging.start_time),
+				jiffies_to_msecs(jiffies - tikle_logging.start_time)/1000);
 
+		/*
+		 * Register trigger timers
+		 */
 		tikle_trigger_handling();
 	} else {
-		printk(KERN_ERR "tikle alert: you do not have permission to start execution. received: '%s'\n", tikle_auth);
+		printk(KERN_ERR "tikle alert: you don't have permission to start execution. received: '%s'\n", tikle_auth);
 	}
 	return 0;
 }
@@ -1404,7 +1429,6 @@ static int __init tikle_init(void)
 	/* 
 	 * create main directory
 	 */
-
 	tikle_main_proc_dir = proc_mkdir("tikle", proc_net);
 	
 	if (!tikle_main_proc_dir) {
@@ -1417,10 +1441,7 @@ static int __init tikle_init(void)
 	/*
 	 *  create a file controller
 	 */
-
-	tikle_shell_proc_entry = create_proc_entry("shell",
-						   S_IWUSR,
-						   tikle_main_proc_dir);
+	tikle_shell_proc_entry = create_proc_entry("shell", S_IWUSR, tikle_main_proc_dir);
 
 	if (!tikle_shell_proc_entry) {
 		tikle_err = -ENOMEM;
@@ -1435,7 +1456,6 @@ static int __init tikle_init(void)
 	 * The 'owner' member has
 	 * been changed since 2.6.30
 	 */
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30)
 	tikle_shell_proc_entry->owner = THIS_MODULE;
 #endif
@@ -1447,7 +1467,6 @@ static int __init tikle_init(void)
 	 * preparing thread to
 	 * init socket stuff
 	 */
-
 	tikle_comm = kmalloc(sizeof(struct tikle_sockudp), GFP_KERNEL);
 	memset(tikle_comm, 0, sizeof(struct tikle_sockudp));
 
@@ -1467,7 +1486,6 @@ static int __init tikle_init(void)
 	tikle_random(&tikle_seed);
 
 	printk(KERN_INFO "tikle alert: seeds are 0x%x 0x%x 0x%x\n", tikle_seed.s1, tikle_seed.s2, tikle_seed.s3);
-
 	printk(KERN_INFO "tikle alert: module loaded\n");
 
 	return tikle_err;
@@ -1486,19 +1504,15 @@ tikle_exit:
  */
 static void __exit tikle_exit(void)
 {
-	unsigned int i = 0, k = 0;
-
 	/*
 	 * cleanup procfs
 	 */
-
 	remove_proc_entry("shell", tikle_main_proc_dir);
 	remove_proc_entry("tikle", proc_net);
 
 	/*
 	 * cleanup memory/socket
 	 */
-
 	if (!tikle_comm->sock_recv || tikle_comm->sock_send) {
 		sock_release(tikle_comm->sock_recv);
 		sock_release(tikle_comm->sock_send);
@@ -1510,21 +1524,14 @@ static void __exit tikle_exit(void)
 	kfree(tikle_timers);
 	tikle_comm = NULL;
 
-	/* Check if the faultlets were loaded */
-	if (faultload[0].opcode) {
-		do {
-			if (faultload[i].op_type) {
-				for (k = 0; k < faultload[i].num_ops; k++) {
-					if (faultload[i].op_type[k] == STRING) {
-						SECURE_FREE(faultload[i].op_value[k].str.value);
-					}
-				}
-				kfree(faultload[i].op_type);
-				SECURE_FREE(faultload[i].op_value);
-			}		
-		} while (faultload[i++].block_type == 0);
-	}
+	/*
+	 * Freeing faultload structure if needed
+	 */
+	tikle_faultload_free();
 	
+	/*
+	 * Freeing counters
+	 */
 	SECURE_FREE(tikle_log_counters);
 
 	printk(KERN_INFO "tikle alert: module unloaded\n");
