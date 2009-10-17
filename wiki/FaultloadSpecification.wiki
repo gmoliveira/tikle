@@ -3,10 +3,21 @@
 
 <wiki:toc max_depth="1" />
 
-Opcodes
+|| *Opcodes* || *Information* ||
+|| COMMAND || ||
+|| AFTER || ||
+|| WHILE || Not implemented ||
+|| HOST || ||
+|| IF || ||
+|| ELSE || ||
+|| END_IF || ||
+|| END || ||
+|| SET || Not implemented ||
+|| FOREACH || ||
+|| PARTITION || ||
+|| DECLARE || ||
 
-
-Particionamento de Rede:
+==Particionamento de Rede==
 {{{
 @declare {10.0.0.1, 10.0.0.2, 10.0.0.3};
 
@@ -24,8 +35,8 @@ stop:
   after ();
 }}}
 
-Descarte/Duplicação de Pacotes:
------
+==Descarte/Duplicação de Pacotes==
+{{{
 @10.0.0.1
 start:
   after () do
@@ -55,10 +66,10 @@ start:
   end
 stop:
   after ();
------
+}}}
 
-Injeção de falhas em aplicações multiprotocolo
------
+==Injeção de falhas em aplicações multiprotocolo==
+{{{
 @10.0.0.1
 start:
   after () do
@@ -97,10 +108,10 @@ start:
   end
 stop:
   after ();
------
+}}}
 
-Atraso de Pacotes
------
+==Atraso de Pacotes==
+{{{
 @10.0.0.1
 start:
   after () do
@@ -124,10 +135,10 @@ start:
   end
 stop:
   after ();
------
+}}}
 
-Injeção de falhas sem gatilhos de início e fim
------
+==Injeção de falhas sem gatilhos de início e fim==
+{{{
 @10.0.0.1
 start:
   tcp drop 5%;
@@ -145,10 +156,11 @@ start:
   udp drop 3%;
 stop:
   manual;
------
+}}}
 
- Extensions: progressive if-then-else SET
------
+----
+
+==Extensions: progressive if-then-else SET==
 progressive: para caracterização de falhas em ambientes móveis
 set: para armazenar flags especificas de uma aplicacao
 if-then-else: para verificação do estado local da máquina
