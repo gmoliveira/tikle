@@ -1,9 +1,11 @@
 #summary Faultload Specification
 #labels Faultload,Scenario
 
-<wiki:toc max_depth="1" />
+=Faultload Specification=
 
-|| *Opcodes* || *Information* ||
+<wiki:toc max_depth="2" />
+
+|| *Opcode* || *Information* ||
 || COMMAND || ||
 || AFTER || ||
 || WHILE || Not implemented ||
@@ -160,12 +162,21 @@ stop:
 
 ----
 
-==Extensions: progressive if-then-else SET==
-progressive: para caracterização de falhas em ambientes móveis
-set: para armazenar flags especificas de uma aplicacao
-if-then-else: para verificação do estado local da máquina
+==Extensions==
+
+===progressive===
+Para caracterização de falhas em ambientes móveis
+
+===if-then-else===
+Para verificação do estado local da máquina
+
+{{{
 if () then
   ...
 else
   ...
 end if
+}}}
+
+===SET===
+Para armazenar flags especificas de uma aplicacao
