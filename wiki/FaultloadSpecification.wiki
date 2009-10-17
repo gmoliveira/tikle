@@ -1,5 +1,5 @@
 #summary Faultload Specification
-#labels faultload,Scenario
+#labels faultload,scenario
 
 =Faultload Specification=
 
