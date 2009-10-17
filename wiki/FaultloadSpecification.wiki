@@ -1,4 +1,5 @@
 #summary Faultload Specification
+#labels Faultload,Scenario
 
 Particionamento de Rede:
 -----
