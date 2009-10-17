@@ -1,8 +1,13 @@
 #summary Faultload Specification
 #labels Faultload,Scenario
 
+<wiki:toc max_depth="1" />
+
+Opcodes
+
+
 Particionamento de Rede:
------
+{{{
 @declare {10.0.0.1, 10.0.0.2, 10.0.0.3};
 
 start:
@@ -17,7 +22,7 @@ start:
   end
 stop:
   after ();
------
+}}}
 
 Descarte/Duplicação de Pacotes:
 -----
