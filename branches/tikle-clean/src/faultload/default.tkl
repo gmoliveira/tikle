@@ -1,0 +1,8 @@
+@declare {10.0.2.15};
+
+start:
+  after (5s) do
+    partition {10.0.2.15};
+  end
+stop:
+  after (15s);
