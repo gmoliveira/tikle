@@ -1,8 +1,9 @@
 #summary Tasks
 #labels ToDo
 
-  * (brainstorming) develop a virtual synchronism; (nst)
+  * (brainstorming) develop a virtual synchronism without affecting the workload; (nst)
   * (in development) support other communication faults such as drop, delay, duplication and corruption of a message; (nst)
-  * (in development) develop a logging system to support manager analysis after execution; (nst, ecl)
+  * (in development) develop a logging system to permit the assessment of testing integrity; (nst, ecl)
+  * (in development) develop a probability distribution to emulate a non-tendencious behavior (tausworthe generators) (nst);
   * (ready to run) use JGroups to validate our tool; (nst)
   * (dead) provide UML descriptions; (nst)
