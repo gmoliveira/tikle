@@ -681,15 +681,15 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	/*
 	 * log counters dummy version
 	 */
-	for (; i < num_ips && tikle_log_counters[i*3]; i++) {
-		if (tikle_log_counters[i*3] == ipip_hdr(sb)->saddr) {
+	for (; i < num_ips && tikle_log_counters[i*4]; i++) {
+		if (tikle_log_counters[i*4] == ipip_hdr(sb)->saddr) {
 			log_found_flag = i;
 			break;
 		}
 	}
 		
 	if (log_found_flag < 0) {
-		tikle_log_counters[i*3] = ipip_hdr(sb)->saddr;
+		tikle_log_counters[i*4] = ipip_hdr(sb)->saddr;
 	}
 
 	/*
@@ -725,9 +725,11 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	 */
 	tikle_logging.total_packets++;
 
-	tikle_log_counters[i*3+1]++;
+	tikle_log_counters[i*4+1] = tikle_trigger_flag;
 
-	printk(KERN_INFO "- tikle pre counters: %lu\n", tikle_log_counters[i*3+1]);
+	tikle_log_counters[i*4+2]++;
+
+	printk(KERN_INFO "- tikle pre counters: %lu\n", tikle_log_counters[i*4+2]);
 
 	/*
 	 * packets will be intercepted only if a timer is active. if
@@ -949,23 +951,25 @@ static unsigned int tikle_post_hook_function(unsigned int hooknum,
 	/*
 	 * log counters dummy version
 	 */
-	for (; i < num_ips && tikle_log_counters[i*3]; i++) {
-		if (tikle_log_counters[i*3] == ipip_hdr(sb)->daddr) {
+	for (; i < num_ips && tikle_log_counters[i*4]; i++) {
+		if (tikle_log_counters[i*4] == ipip_hdr(sb)->daddr) {
 			log_found_flag = i;
 			break;
 		}
 	}
 		
 	if (log_found_flag < 0) {
-		tikle_log_counters[i*3] = ipip_hdr(sb)->daddr;
+		tikle_log_counters[i*4] = ipip_hdr(sb)->daddr;
 	}
 
 	/*
 	 * updating log informations
 	 */
-	tikle_log_counters[i*3+2]++;
+	tikle_log_counters[i*4+1] = tikle_trigger_flag;
 
-	printk(KERN_INFO "- tikle post counters: %lu\n", tikle_log_counters[i*3+2]);
+	tikle_log_counters[i*4+3]++;
+
+	printk(KERN_INFO "- tikle post counters: %lu\n", tikle_log_counters[i*4+3]);
 
 	log = kmalloc(100 * sizeof(char), GFP_KERNEL | GFP_ATOMIC);
 	
@@ -1304,7 +1308,7 @@ next:
 	 * preparing log counters
 	 */
 	if (num_ips) {
-		tikle_log_counters = kcalloc(num_ips * 3, sizeof(unsigned long), GFP_KERNEL | GFP_ATOMIC);
+		tikle_log_counters = kcalloc(num_ips * 4, sizeof(unsigned long), GFP_KERNEL | GFP_ATOMIC);
 	}
 
 	/*
@@ -1410,7 +1414,7 @@ static void tikle_send_log(void)
 		tikle_comm->sock_log = NULL; 
 	}
 
-	tikle_sockudp_send(tikle_comm->sock_log, &tikle_comm->addr_log, tikle_log_counters, sizeof(unsigned long) * 3 * num_ips);
+	tikle_sockudp_send(tikle_comm->sock_log, &tikle_comm->addr_log, tikle_log_counters, sizeof(unsigned long) * 4 * num_ips);
 }
 
 
