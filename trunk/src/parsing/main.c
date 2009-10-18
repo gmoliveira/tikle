@@ -131,17 +131,17 @@ static void tikle_send_log(int partition_num_ips)
 	tikle_socklen = sizeof(tikle_log_server_addr);
 
 	for (n = 0; n < partition_num_ips; n++) {
-		tikle_log_all[n] = (unsigned long *) malloc(sizeof(unsigned long) * 3 * partition_num_ips);
+		tikle_log_all[n] = (unsigned long *) malloc(sizeof(unsigned long) * 4 * partition_num_ips);
 				
-		tikle_err = recvfrom(tikle_log_sock_server, tikle_log_all[n], sizeof(unsigned long) * 3 * partition_num_ips,
+		tikle_err = recvfrom(tikle_log_sock_server, tikle_log_all[n], sizeof(unsigned long) * 4 * partition_num_ips,
 			0, (struct sockaddr *)&tikle_log_server_addr, &tikle_socklen);
 			
 		printf("tikle alert: received log from %s\n", inet_ntoa(tikle_log_server_addr.sin_addr));
-		printf(" HOST           | IN  | OUT\n");
+		printf(" HOST            EVENT | IN  | OUT\n");
 
 		for (i = 0; i < partition_num_ips; i++) {
-			printf("%-15s | %03lu | %03lu\n", inet_ntoa(*(struct in_addr*)&tikle_log_all[n][3*i]),
-				tikle_log_all[n][3*i+1], tikle_log_all[n][3*i+2]);
+			printf("%-15s | %03lu | %03lu | %03lu\n", inet_ntoa(*(struct in_addr*)&tikle_log_all[n][4*i]),
+				tikle_log_all[n][4*i+1], tikle_log_all[n][4*i+2], tikle_log_all[n][4*i+3]);
 		}
 		
 		/* Freeing */
