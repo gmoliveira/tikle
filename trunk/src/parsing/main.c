@@ -223,7 +223,6 @@ int main(int argc, char **argv)
 
 	tikle_sock_server = socket(AF_INET, SOCK_DGRAM, 0);
 	tikle_server_addr.sin_family = AF_INET;
-//	tikle_server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	tikle_server_addr.sin_port = htons(21508);
 	bind(tikle_sock_server, (struct sockaddr *)&tikle_server_addr, sizeof(tikle_server_addr));
 
