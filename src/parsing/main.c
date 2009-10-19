@@ -223,7 +223,7 @@ int main(int argc, char **argv)
 
 	tikle_sock_server = socket(AF_INET, SOCK_DGRAM, 0);
 	tikle_server_addr.sin_family = AF_INET;
-	tikle_server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+//	tikle_server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	tikle_server_addr.sin_port = htons(21508);
 	bind(tikle_sock_server, (struct sockaddr *)&tikle_server_addr, sizeof(tikle_server_addr));
 
@@ -363,8 +363,8 @@ int main(int argc, char **argv)
   			if (ifr->ifr_broadaddr.sa_family == AF_INET) {
   				struct sockaddr_in *sin = (struct sockaddr_in *) &ifr->ifr_broadaddr;
 				
-				if (strcmp(ifr->ifr_name, "eth0") == 0) {
-					tikle_client_addr.sin_addr.s_addr = inet_addr(inet_ntoa(sin->sin_addr));
+				if ((strcmp(ifr->ifr_name, "eth0") == 0) || (strcmp(ifr->ifr_name, "eth1") == 0)) {
+					tikle_server_addr.sin_addr.s_addr = htonl(inet_addr(inet_ntoa(sin->sin_addr)));
 					break;
 				}
   			} else {
