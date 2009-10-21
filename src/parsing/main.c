@@ -140,7 +140,7 @@ static void tikle_send_log(int partition_num_ips)
 		printf(" HOST            EVENT | IN  | OUT\n");
 
 		for (i = 0; i < partition_num_ips; i++) {
-			printf("%-15s | %03lu | %03lu | %03lu\n", inet_ntoa(*(struct in_addr*)&tikle_log_all[n][4*i]),
+			printf("%-15s | %03lu | %03lu | %03lu\n",inet_ntoa(tikle_log_server_addr.sin_addr) /*inet_ntoa(*(struct in_addr*)&tikle_log_all[n][4*i])*/,
 				tikle_log_all[n][4*i+1], tikle_log_all[n][4*i+2], tikle_log_all[n][4*i+3]);
 		}
 		

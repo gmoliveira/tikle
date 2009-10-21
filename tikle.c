@@ -681,6 +681,7 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	/*
 	 * log counters dummy version
 	 */
+
 	for (; i < num_ips && tikle_log_counters[i*4]; i++) {
 		if (tikle_log_counters[i*4] == ipip_hdr(sb)->saddr) {
 			log_found_flag = i;
@@ -689,6 +690,7 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	}
 		
 	if (log_found_flag < 0) {
+		printk(KERN_INFO "IP: " NIPQUAD_FMT "\n\n", NIPQUAD(ipip_hdr(sb)->saddr));
 		tikle_log_counters[i*4] = ipip_hdr(sb)->saddr;
 	}
 
@@ -1294,7 +1296,6 @@ next:
 	/*
 	 * get the controller ip address
 	 */
-	printk(KERN_INFO "tikle alert: Controller IP is " NIPQUAD_FMT "\n", NIPQUAD(tikle_comm->addr_send.sin_addr));
 	tikle_comm->addr_send.sin_addr.s_addr = tikle_comm->addr_recv.sin_addr.s_addr;
 
 	/*
@@ -1308,6 +1309,8 @@ next:
 		sock_release(tikle_comm->sock_send);
 		tikle_comm->sock_send = NULL;
 	}
+
+	printk(KERN_INFO "tikle alert: Controller IP is " NIPQUAD_FMT "\n", NIPQUAD(tikle_comm->addr_send.sin_addr));
 
 	printk(KERN_INFO "tikle alert: sending confirmation of received data\n");
 
