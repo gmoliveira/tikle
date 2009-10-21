@@ -1121,18 +1121,14 @@ static int tikle_sockudp_start(void)
 
 	memset(&tikle_comm->addr_send, 0, sizeof(struct sockaddr));
 	tikle_comm->addr_send.sin_family = AF_INET;
-	tikle_comm->addr_send.sin_addr.s_addr = htonl(INADDR_ANY);
 	tikle_comm->addr_send.sin_port = htons(PORT_CONNECT);
 
-	if (((tikle_err = tikle_comm->sock_recv->ops->bind(tikle_comm->sock_recv,
+	if ((tikle_err = tikle_comm->sock_recv->ops->bind(tikle_comm->sock_recv,
 			(struct sockaddr *)&tikle_comm->addr_recv, sizeof(struct sockaddr))) < 0)
-		|| ((tikle_err = tikle_comm->sock_send->ops->connect(tikle_comm->sock_send,
-			(struct sockaddr *)&tikle_comm->addr_send, sizeof(struct sockaddr), 0)) < 0)) {
-		printk(KERN_ERR "tikle alert: error %d while binding/connecting to socket\n", -tikle_err);
+		{
+		printk(KERN_ERR "tikle alert: error %d while binding to socket\n", -tikle_err);
 		sock_release(tikle_comm->sock_recv);
-		sock_release(tikle_comm->sock_send);
 		tikle_comm->sock_recv = NULL; 
-		tikle_comm->sock_send = NULL;
 	}
 
 	printk(KERN_INFO "tikle alert: listening on port %d\n", PORT_LISTEN);
@@ -1146,7 +1142,7 @@ static int tikle_sockudp_start(void)
 	
 	size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 		&num_ips, sizeof(int));
-		
+	
 	if (size < 0) {
 		printk(KERN_ERR "tikle alert: error %d while getting datagram\n", size);
 	} else {
@@ -1296,9 +1292,23 @@ next:
 	printk(KERN_INFO "- end------------------------------------\n");
 
 	/*
+	 * get the controller ip address
+	 */
+	printk(KERN_INFO "tikle alert: Controller IP is " NIPQUAD_FMT "\n", NIPQUAD(tikle_comm->addr_send.sin_addr));
+	tikle_comm->addr_send.sin_addr.s_addr = tikle_comm->addr_recv.sin_addr.s_addr;
+
+	/*
 	 * sending confirmation of data received
 	 * (for control protocol stuffs)
 	 */
+	if ((tikle_err = tikle_comm->sock_send->ops->connect(tikle_comm->sock_send,
+			(struct sockaddr *)&tikle_comm->addr_send, sizeof(struct sockaddr), 0)) < 0)
+	{
+		printk(KERN_ERR "tikle alert: error %d while connecting to socket\n", -tikle_err);
+		sock_release(tikle_comm->sock_send);
+		tikle_comm->sock_send = NULL;
+	}
+
 	printk(KERN_INFO "tikle alert: sending confirmation of received data\n");
 
 	tikle_sockudp_send(tikle_comm->sock_send, &tikle_comm->addr_send,
@@ -1405,7 +1415,7 @@ static void tikle_send_log(void)
 
 	memset(&tikle_comm->addr_log, 0, sizeof(struct sockaddr));
 	tikle_comm->addr_log.sin_family = AF_INET;
-	tikle_comm->addr_log.sin_addr.s_addr = htonl(INADDR_ANY);
+	tikle_comm->addr_log.sin_addr.s_addr = tikle_comm->addr_recv.sin_addr.s_addr;
 	tikle_comm->addr_log.sin_port = htons(PORT_LOGGING);
 
 	if ((tikle_err = tikle_comm->sock_send->ops->connect(tikle_comm->sock_send,(struct sockaddr *)&tikle_comm->addr_send, sizeof(struct sockaddr), 0)) < 0) {
