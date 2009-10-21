@@ -5,4 +5,4 @@ start:
     partition {10.0.2.15};
   end
 stop:
-  after (15s);
+  after (10s);
