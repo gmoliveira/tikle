@@ -1,8 +1,8 @@
-@declare {10.0.2.15};
+@declare {127.0.0.1};
 
 start:
   after (5s) do
-    partition {10.0.2.15};
+    partition {127.0.0.1};
   end
 stop:
   after (10s);
