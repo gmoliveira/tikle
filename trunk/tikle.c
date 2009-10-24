@@ -86,8 +86,14 @@ static struct delay_data {
  */
 static tikle_log tikle_logging;
 
-static int num_ips;
+static int num_ips, log_size;
 static unsigned long *tikle_log_counters = NULL;
+
+#define tikle_log_daddr(_i) _i*5
+#define tikle_log_saddr(_i) _i*5+1
+#define tikle_log_event(_i) _i*5+2
+#define tikle_log_in(_i)    _i*5+3
+#define tikle_log_out(_i)   _i*5+4
 
 static void tikle_send_log(void);
 
@@ -682,17 +688,32 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	 * log counters dummy version
 	 */
 
-	for (; i < num_ips && tikle_log_counters[i*4]; i++) {
-		if (tikle_log_counters[i*4] == ipip_hdr(sb)->saddr) {
+	for (; i < log_size && tikle_log_counters[tikle_log_daddr(i)]; i++) {
+		if (tikle_log_counters[tikle_log_daddr(i)] == ipip_hdr(sb)->daddr &&
+			tikle_log_counters[tikle_log_saddr(i)] == ipip_hdr(sb)->saddr &&
+			tikle_log_counters[tikle_log_event(i)] == tikle_trigger_flag) {
 			log_found_flag = i;
 			break;
 		}
 	}
 		
+	/*
+	 * update log informations
+	 */
 	if (log_found_flag < 0) {
+		if (i > 0) {
+			i--;
+		}
 		printk(KERN_INFO "IP: " NIPQUAD_FMT "\n\n", NIPQUAD(ipip_hdr(sb)->saddr));
-		tikle_log_counters[i*4] = ipip_hdr(sb)->saddr;
+		
+		tikle_log_counters[tikle_log_daddr(i)] = ipip_hdr(sb)->daddr;
+		tikle_log_counters[tikle_log_saddr(i)] = ipip_hdr(sb)->saddr;
+		tikle_log_counters[tikle_log_event(i)] = tikle_trigger_flag;
 	}
+	
+	tikle_log_counters[tikle_log_in(i)]++;
+
+	printk(KERN_INFO "- tikle pre counters: %lu\n", tikle_log_counters[tikle_log_in(i)]);
 
 	/*
 	 * log system syntax (in order):
@@ -722,16 +743,8 @@ static unsigned int tikle_pre_hook_function(unsigned int hooknum,
 		kfree(log);
 	}
 
-	/*
-	 * update log informations
-	 */
+
 	tikle_logging.total_packets++;
-
-	tikle_log_counters[i*4+1] = tikle_trigger_flag;
-
-	tikle_log_counters[i*4+2]++;
-
-	printk(KERN_INFO "- tikle pre counters: %lu\n", tikle_log_counters[i*4+2]);
 
 	/*
 	 * packets will be intercepted only if a timer is active. if
@@ -953,25 +966,30 @@ static unsigned int tikle_post_hook_function(unsigned int hooknum,
 	/*
 	 * log counters dummy version
 	 */
-	for (; i < num_ips && tikle_log_counters[i*4]; i++) {
-		if (tikle_log_counters[i*4] == ipip_hdr(sb)->daddr) {
+	for (; i < log_size && tikle_log_counters[tikle_log_daddr(i)]; i++) {
+		if (tikle_log_counters[tikle_log_daddr(i)] == ipip_hdr(sb)->daddr &&
+			tikle_log_counters[tikle_log_saddr(i)] == ipip_hdr(sb)->saddr &&
+			tikle_log_counters[tikle_log_event(i)] == tikle_trigger_flag) {
 			log_found_flag = i;
 			break;
 		}
 	}
 		
-	if (log_found_flag < 0) {
-		tikle_log_counters[i*4] = ipip_hdr(sb)->daddr;
-	}
-
 	/*
 	 * updating log informations
 	 */
-	tikle_log_counters[i*4+1] = tikle_trigger_flag;
+	if (log_found_flag < 0) {
+		if (i > 0) {
+			i--;
+		}
+		tikle_log_counters[tikle_log_daddr(i)] = ipip_hdr(sb)->daddr;
+		tikle_log_counters[tikle_log_saddr(i)] = ipip_hdr(sb)->saddr;
+		tikle_log_counters[tikle_log_event(i)] = tikle_trigger_flag;
+	}
 
-	tikle_log_counters[i*4+3]++;
+	tikle_log_counters[tikle_log_out(i)]++;
 
-	printk(KERN_INFO "- tikle post counters: %lu\n", tikle_log_counters[i*4+3]);
+	printk(KERN_INFO "- tikle post counters: %lu\n", tikle_log_counters[tikle_log_out(i)]);
 
 	log = kmalloc(100 * sizeof(char), GFP_KERNEL | GFP_ATOMIC);
 	
@@ -1318,13 +1336,6 @@ next:
 		"tikle-received", sizeof("tikle-received"));
 
 	/*
-	 * preparing log counters
-	 */
-	if (num_ips) {
-		tikle_log_counters = kcalloc(num_ips * 4, sizeof(unsigned long), GFP_KERNEL | GFP_ATOMIC);
-	}
-
-	/*
 	 * waiting for controller
 	 * authorization to start
 	 */
@@ -1337,12 +1348,11 @@ next:
 	if (size < 0) {
 		printk(KERN_ERR "tikle alert: error %d while getting authorization\n", size);
 		tikle_faultload_free();
-		SECURE_FREE(tikle_log_counters);
 		
 		return 0;
 	} else if (strncmp(tikle_auth, "tikle-start", sizeof("tikle-start")) == 0) { 
 		printk(KERN_ERR "tikle alert: received permission to start execution\n");
-
+	
 		/*
 		 * load faultload in memory
 		 */	
@@ -1364,6 +1374,17 @@ next:
 					break;
 			}
 		} while (faultload[i++].block_type == 0);
+		
+		/*
+		 * preparing log counters
+		 */
+		if (num_ips) {
+			/* -1 because the STOP in AFTER part */
+			printk(KERN_INFO "tikle log: log_size = %d (timers) * %d (ips)\n", (tikle_num_timers-1), num_ips);
+			
+			log_size = (tikle_num_timers-1) * num_ips * 5;
+			tikle_log_counters = kcalloc(log_size, sizeof(unsigned long), GFP_KERNEL | GFP_ATOMIC);
+		}
 
 		/*
 		 * calling trigger handling
@@ -1427,7 +1448,7 @@ static void tikle_send_log(void)
 		tikle_comm->sock_log = NULL; 
 	}
 
-	tikle_sockudp_send(tikle_comm->sock_log, &tikle_comm->addr_log, tikle_log_counters, sizeof(unsigned long) * 4 * num_ips);
+	tikle_sockudp_send(tikle_comm->sock_log, &tikle_comm->addr_log, tikle_log_counters, sizeof(unsigned long) * log_size);
 }
 
 
