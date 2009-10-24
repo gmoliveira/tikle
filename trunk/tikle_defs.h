@@ -143,9 +143,4 @@ typedef struct {
 #define TAUSWORTHE(s,a,b,c,d) ((s&c)<<d) ^ (((s <<a) ^ s)>>b)
 #define LCG(n) (69069 * n)
 
-typedef struct {
-	unsigned long start_time;
-	int total_packets, accept_packets, reject_packets;
-} tikle_log;
-
 #endif /* TIKLE_DEFS_H */

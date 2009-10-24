@@ -417,7 +417,8 @@ int main(int argc, char **argv)
 	
 	tikle_socklen = sizeof(tikle_server_addr);
 
-	for (; tikle_num_replies < partition_num_ips;) {		
+	for (; tikle_num_replies < partition_num_ips;) {
+		printf("tikle alert: confirmations remaing %d\n", partition_num_ips - tikle_num_replies);
 		tikle_err = recvfrom(tikle_sock_server, tikle_reply, sizeof("tikle-received"), 0,
 			(struct sockaddr *)&tikle_server_addr, &tikle_socklen);
 		
