@@ -24,7 +24,7 @@
 #ifndef LEMON_PARSER_H
 #define LEMON_PARSER_H
 
-#include "../../tikle_defs.h"
+#include "../../tikle_types.h"
 
 #define IN_DEBUG 0
 

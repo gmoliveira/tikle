@@ -25,35 +25,26 @@
 #include <linux/module.h> /* well this is a module, right? */
 #include <linux/kernel.h> /* KERN_INFO stuff */
 #include <linux/init.h> /* module init macros */
-
-
 #include <net/netfilter/nf_queue.h>
 #include <linux/netfilter.h> /* kernel protocol stack */
 #include <linux/netdevice.h> /* SOCK_DGRAM, KERNEL_DS an others */
-#include <linux/in.h> /* sockaddr_in and other macros */
-#include <linux/ip.h> /* ipip_hdr(const struct sk_buff *sb) */
-
 #include <linux/proc_fs.h> /* procfs manipulation */
 #include <net/net_namespace.h> /* proc_net stuff */
 #include <linux/sched.h> /* current-euid() */
-
 #include <asm/uaccess.h> /* kernel-mode to user-mode and reverse */
 #include <linux/kthread.h> /* kernel threads */
 #include <linux/timer.h> /* temporization trigger stuff */
-
 #include <linux/file.h> /* write to file */
-
 #include <linux/random.h> /* tausworthe generators */
-
-#include "tikle_defs.h" /* tikle macros */
-
 /*
  * path to netiflter constants
  * needed since kernel 2.6.27
  */
-
 #undef __KERNEL__
 #include <linux/netfilter_ipv4.h>
+#include "tikle_hooks.h" /* tikle hooks */
+#include "tikle_defs.h" /* tikle macros */
+
 
 /**
  * New reference to proc_net
@@ -66,25 +57,6 @@
 static char tikle_buffer[TIKLE_PROCFSBUF_SIZE];
 
 /**
- * Struct to register hook operations
- */
-static struct nf_hook_ops tikle_pre_hook, tikle_post_hook;
-
-/**
- * Struct to store log data
- */
-static int num_ips, log_size;
-static unsigned long *tikle_log_counters = NULL;
-
-#define tikle_log_daddr(_i) _i*5
-#define tikle_log_saddr(_i) _i*5+1
-#define tikle_log_event(_i) _i*5+2
-#define tikle_log_in(_i)    _i*5+3
-#define tikle_log_out(_i)   _i*5+4
-
-static void tikle_send_log(void);
-
-/**
  * tausworthe seeds
  */
 struct tikle_seeds {
@@ -93,53 +65,7 @@ struct tikle_seeds {
 
 static struct tikle_seeds tikle_seed;
 
-/**
- * Opcode names
- */
-static const char *op_names[] = { 
-	"COMMAND", "AFTER", "WHILE", "HOST", "IF", "ELSE",
-	"END_IF", "END", "SET", "FOREACH", "PARTITION", "DECLARE"
-};
-
-/**
- * Struct declaration for handling timers
- */
-struct tikle_timer {
-	struct timer_list trigger;
-	/*
-	 * The key on faultload[]
-	 */
-	unsigned int trigger_id;
-	/*
-	 * The trigger state. 0 for inative,
-	 * 1 for active, 2 for killed.
-	 */
-	unsigned int trigger_state;
-};
-
-static struct tikle_timer *tikle_timers;
-
-/**
- * Control flags
- */
-static unsigned int tikle_num_timers = 0, tikle_trigger_flag = 0;
-
-/**
- * Faultload
- */
-static faultload_op faultload[30];
-
-static unsigned int tikle_pre_hook_function(unsigned int hooknum,
-				 struct sk_buff *pskb,
-				 const struct net_device *indev,
-				 const struct net_device *outdev,
-				 int (*okfn)(struct sk_buff *));
-
-static unsigned int tikle_post_hook_function(unsigned int hooknum,
-				 struct sk_buff *pskb,
-				 const struct net_device *indev,
-				 const struct net_device *outdev,
-				 int (*okfn)(struct sk_buff *));
+struct tikle_timer *tikle_timers;
 
 /**
  * The size of the data
@@ -147,23 +73,13 @@ static unsigned int tikle_post_hook_function(unsigned int hooknum,
  */
 static unsigned long tikle_buffer_size = 0;
 
+tikle_log_counters = NULL;
+
 /**
  * procfs structures.
  */
 static struct proc_dir_entry *tikle_main_proc_dir,    /* /proc/net/tikle */
 			     *tikle_shell_proc_entry; /* /proc/net/tikle/shell */
-
-/**
- * socket structure
- */
-struct tikle_sockudp {
-	int flag;
-	struct task_struct *thread;
-	struct socket *sock_recv, *sock_send, *sock_log;
-	struct sockaddr_in addr_recv, addr_send, addr_log;
-};
-
-struct tikle_sockudp *tikle_comm = NULL;
 
 /**
  * @brief Called when a /proc/net/tikle file is "read".
@@ -351,6 +267,7 @@ static struct inode_operations tikle_iops = {
 	.name = "queue handler",
 };*/
 
+
 /**
  * Free all memory used in faultload structure
  */
@@ -375,496 +292,6 @@ static void tikle_faultload_free(void)
 				}		
 		} while (faultload[i++].block_type == 0);
 	}
-}
-
-/**
- * Update flags to maintain a timer execution control.
- *
- * @param id active trigger id
- * @return void
- */
-static void tikle_flag_handling(unsigned long id)
-{
-	/*
-	 * set the previous timer as 'killed'
-	 * and update the system flags with the
-	 * running trigger informations
-	 */
-	if (id > 0 && tikle_timers[tikle_trigger_flag].trigger_state == 1) {
-		tikle_timers[tikle_trigger_flag].trigger_state = 2;
-		printk(KERN_INFO "tikle alert: killing timer %d\n", tikle_trigger_flag);
-
-		/*
-		 * Go to next timer
-		 */
-		tikle_trigger_flag++;	
-	}
-	
-	printk(KERN_INFO "tikle alert: activating timer %d\n", tikle_trigger_flag);
-
-	/* 
-	 * Set state to active
-	 */
-	tikle_timers[tikle_trigger_flag].trigger_state = 1;
-
-	/*
-	 * stop trigger handler
-	 */
-	if (tikle_trigger_flag == tikle_num_timers-1) {
-		nf_unregister_hook(&tikle_pre_hook);
-		nf_unregister_hook(&tikle_post_hook);
-
-		//nf_unregister_queue_handler(PF_INET, &qh);
-
-		printk(KERN_INFO "tikle alert: killing timer %d\n\texecution ended\n", tikle_trigger_flag);
-
-		tikle_send_log();
-	}
-}
-
-/**
- * Setup trigger handling
- * @return void
- */
-static void tikle_trigger_handling(void)
-{
-	unsigned int i = 0, base;
-
-	/*
-	 * setting up triggers
- 	 */
-	printk(KERN_INFO "TRIGGERS:\n");
-
-	for (i = 0; i < tikle_num_timers; i++) {
-		init_timer(&tikle_timers[i].trigger);
-
-		tikle_timers[i].trigger.function = tikle_flag_handling;
-
-		/*
-		 * send the next trigger ID, if actual trigger it is
-		 * not the latest, else send your own trigger ID
-		 */
-		if (tikle_timers[i].trigger_id < tikle_timers[tikle_num_timers-1].trigger_id) {
-			tikle_timers[i].trigger.data = tikle_timers[i+1].trigger_id;
-		} else {
-			tikle_timers[i].trigger.data = tikle_timers[i].trigger_id;
-		}
-		
-		printk(KERN_INFO "Registering timer %d; trigger_id=%d ; trigger_data=%ld\n",
-			i, tikle_timers[i].trigger_id, tikle_timers[i].trigger.data);
-
-		/*
-		 * calculate expire time to trigger
-		 * based on the experiment start time
-		 */		
-		base = jiffies;
-		tikle_timers[i].trigger.expires = base +
-			msecs_to_jiffies(faultload[tikle_timers[i].trigger_id].op_value[0].num * 1000);
-
-		if (tikle_timers[i].trigger_id == 0) { /* if timer corresponds to the first timer */
-
-			/*
-			 * register hook
-			 */
-			tikle_pre_hook.hook = &tikle_pre_hook_function;
-			tikle_pre_hook.hooknum = NF_IP_PRE_ROUTING;
-			tikle_pre_hook.pf = PF_INET;
-			tikle_pre_hook.priority = NF_IP_PRI_FIRST;
-
-			nf_register_hook(&tikle_pre_hook);
-
-			tikle_post_hook.hook = &tikle_post_hook_function;
-			tikle_post_hook.hooknum = NF_IP_POST_ROUTING;
-			tikle_post_hook.pf = PF_INET;
-			tikle_post_hook.priority = NF_IP_PRI_FIRST;
-
-			nf_register_hook(&tikle_post_hook);
-
-			//nf_register_queue_handler(PF_INET, &qh);
-
-			/*
-			 * if timer corresponds
-			 * to the last timer
-			 */
-		} else if (tikle_timers[i].trigger_id == tikle_timers[tikle_num_timers-1].trigger_id) {			
-			/*
-			 * unregister hook timer
-			 * this is done by a thread
-			 * to avoid console freezing
-			 */
-			/* not handled here */
-		}
-		add_timer(&tikle_timers[i].trigger);
-	}
-	printk(KERN_INFO "--------------------------------\n");
-}
-
-/**
- * Begin script interpretation.
- *
- * @param hooknum the hook number
- * @param pskb
- * @param indev
- * @param outdev
- * @param okfn
- * @return 
- */
-static unsigned int tikle_pre_hook_function(unsigned int hooknum,
-				 struct sk_buff *pskb,
-				 const struct net_device *indev,
-				 const struct net_device *outdev,
-				 int (*okfn)(struct sk_buff *))
-{
-	struct sk_buff *sb = pskb; /*, *duplicate_sb;*/
-	unsigned long array_local = 0, array_remote = 1;
-	int i = 0, array, position, log_found_flag = -1;
-
-	printk(KERN_INFO "tikle alert: hook function called\n");
-
-	/*
-	 * log counters dummy version
-	 */
-	for (; i < log_size && tikle_log_counters[tikle_log_daddr(i)]; i++) {
-		if (tikle_log_counters[tikle_log_daddr(i)] == tikle_comm->addr_recv.sin_addr.s_addr &&
-			tikle_log_counters[tikle_log_saddr(i)] == ipip_hdr(sb)->saddr &&
-			tikle_log_counters[tikle_log_event(i)] == tikle_trigger_flag) {
-			log_found_flag = i;
-			break;
-		}
-	}
-		
-	/*
-	 * update log informations
-	 */
-	if (log_found_flag < 0) {
-		if (i > 0) {
-			i--;
-		}
-		printk(KERN_INFO "IP: " NIPQUAD_FMT "\n\n", NIPQUAD(ipip_hdr(sb)->saddr));
-		
-		tikle_log_counters[tikle_log_daddr(i)] = tikle_comm->addr_recv.sin_addr.s_addr;
-		tikle_log_counters[tikle_log_saddr(i)] = ipip_hdr(sb)->saddr;
-		tikle_log_counters[tikle_log_event(i)] = tikle_trigger_flag;
-	}
-	
-	tikle_log_counters[tikle_log_in(i)]++;
-
-	printk(KERN_INFO "- tikle pre counters: %lu\n", tikle_log_counters[tikle_log_in(i)]);
-
-	printk(KERN_INFO "INCOMING @ remetente: " NIPQUAD_FMT " @ destinatario: " NIPQUAD_FMT " @ protocolo: %d\n",
-				NIPQUAD(ipip_hdr(sb)->saddr), NIPQUAD(ipip_hdr(sb)->daddr), ipip_hdr(sb)->protocol);
-	/*
-	 * packets will be intercepted only if a timer is active. if
-	 * it is, process packets according to the flagged trigger
-	 */
-	if (tikle_timers[tikle_trigger_flag].trigger_state != 1) {
-		return NF_ACCEPT;
-	}
-	
-	/* Current AFTER */
-	i = tikle_timers[tikle_trigger_flag].trigger_id;
-	
-	do {
-		printk(KERN_INFO "i=%d ; opcode: %d (%s) ; next_op=%d\n",
-			i, faultload[i].opcode, op_names[faultload[i].opcode], faultload[i].next_op);
-		
-		/* Opcode handlers */
-		switch (faultload[i].opcode) {
-			case HOST:
-			case END:
-			case END_IF:
-			case DECLARE:
-				/* Never handled here */
-				break;
-			case ELSE:
-				/* The if-block reached the ELSE,
-						 * then skip to out of end if
-				 */
-				/* i = faultload[i].op_num; */
-				break;
-			case COMMAND:
-				/*
-				 * e.g.
-				 * tcp drop progressive 10%;
-				 * 
-				 * tcp: faultload[i].protocol = TCP_PROTOCOL
-				 * drop: faultload[i].op_value[0].num
-				 * Possible values:
-				 * 	ACT_DROP (1)
-				 *	ACT_DUPLICATE (2)
-				 * 	ACT_DELAY (3)
-				 * 
-				 * progressive: faultload[i].extended_value
-				 * 10: faultload[i].op_value[1].num
-				 */
-				if (faultload[i].protocol == ipip_hdr(sb)->protocol) {
-					/*
-					switch (faultload[i].op_value[0].num) {
-						case ACT_DELAY:
-							NF_QUEUE;
-						case ACT_DROP:
-							return NF_DROP;
-						case ACT_DUPLICATE:
-							duplicate_sb = skb_copy(pskb, GFP_ATOMIC);
-							if (duplicate_sb) {
-								okfn(duplicate_sb);
-							}
-							return NF_ACCEPT;
-					}
-					*/
-				}
-				break;
-			case AFTER:
-				/*
-				 * e.g.
-				 * after (10p) do
-				 *   ...
-				 * end
-				 * 
-				 * 10: faultload[i].op_value[0]
-				 *  p: faultload[i].occur_type
-				 * Possible values:
-				 *   TEMPORAL
-				 *   NPACKETS
-				 *   PERCET
-				 *   NONE (only the number was specified)
-				 */
-				break;
-			case WHILE:
-				/*
-				 * e.g.
-				 * while (10s) do
-				 *   ...
-				 * end
-				 * 
-				 * 10: faultload[i].op_value[0]
-				 *  s: faultload[i].occur_type
-				 * Possible values:
-				 *   TEMPORAL
-				 *   NPACKETS
-				 *   PERCET
-				 *   NONE (only the number was specified)
-				 */
-				break;
-			case IF:
-				/*
-				 * e.g.
-				 * if (%ip is equal 127.0.0.1) then
-				 *   ...
-				 * end if
-				 * 
-				 * %ip: faultload[i].op_value[0]
-				 *   In this case: op_type[0] == VAR
-				 * 
-				 * 'is equal': faultload[i].extended_value
-				 * 
-				 * Possible operators:
-				 * 		'is equal'     = 1
-				 * 		'is not equal' = 2
-				 * 
-				 * 127.0.0.1: faultload[i].op_value[1] (inet_addr)
-				 *            faultload[i].op_type[1] == NUMBER
-				 */
-				/*
-				 * if (!(skip = tikle_handler_if(faultload[i]))) {
-				 * 		i = skip;
-				 * } 
-				 */
-				break;
-			case SET:
-				/* 
-				 * e.g.
-				 * set 127.0.0.1 -> FLAG
-				 * 
-				 * 127.0.0.1: faultload[i].op_value[0] (inet_addr)
-				 *            faultload[i].op_type[0] == NUMBER
-				 * 
-				 * FLAG: faultload[i].op_value[1]
-				 *       faultload[i].op_type[1] == STRING
-				 */
-				break;
-			case FOREACH:
-				/* 
-				 * e.g.
-				 * for each do
-				 *   tcp: drop 20%;
-				 * end
-				 */
-				break;
-			case PARTITION:
-				/* 
-				 * e.g.
-				 * PARTITION BETWEEN A AND B 
-				 * 
-				 * A: faultload[i].op_value[0]
-				 *    faultload[i].op_type[0] == STRING
-				 * 
-				 * B: faultload[i].op_value[1]
-				 *    faultload[i].op_type[0] == STRING
-				 */
-				/*
-				 * loop into partitions to identify allowed communications 
-				 */
-				for (array = 0; array < faultload[i].num_ops; array++) {
-					for (position = 0; position < faultload[i].op_value[array].array.count; position++) {
-
-						/* 
-						 * since kernel 2.6.22 the API to retrieve data from struct sk_buff *pskb
-						 * by typing pskb->nh.iph->saddr has been updated and now it's done by
-						 * ipip_hdr(const struct sk_buff *pskb)->foo defined in "linux/ip.h"
-						 */
-						if (faultload[i].op_value[array].array.nums[position] == ipip_hdr(sb)->saddr) {
-							array_remote = array;
-						} else if (faultload[i].op_value[array].array.nums[position] == tikle_comm->addr_recv.sin_addr.s_addr) {
-							array_local = array;
-						}
-					}
-				}
-
-				if (array_local == array_remote) {
-
-					/*
-					 * if, and only if, the source address of the packet is included
-					 * is included in the same partition as destination address, the
-					 * packet must be accepted. Otherwise, go to 'else' and drop it
-					 */
-					return NF_ACCEPT;
-				} else {
-					return NF_DROP;
-				}
-				break;
-		}
-	} while (++i < faultload[tikle_timers[tikle_trigger_flag].trigger_id].next_op);
-
-	return NF_ACCEPT;
-}
-
-static unsigned int tikle_post_hook_function(unsigned int hooknum,
-				 struct sk_buff *pskb,
-				 const struct net_device *indev,
-				 const struct net_device *outdev,
-				 int (*okfn)(struct sk_buff *))
-{
-	struct sk_buff *sb = pskb;
-	int i = 0, log_found_flag = -1;
-
-	/*
-	 * log counters dummy version
-	 */
-	for (; i < log_size && tikle_log_counters[tikle_log_daddr(i)]; i++) {
-		if (tikle_log_counters[tikle_log_daddr(i)] ==  tikle_comm->addr_recv.sin_addr.s_addr &&
-			tikle_log_counters[tikle_log_saddr(i)] == ipip_hdr(sb)->saddr &&
-			tikle_log_counters[tikle_log_event(i)] == tikle_trigger_flag) {
-			log_found_flag = i;
-			break;
-		}
-	}
-		
-	/*
-	 * updating log informations
-	 */
-	if (log_found_flag < 0) {
-		if (i > 0) {
-			i--;
-		}
-		tikle_log_counters[tikle_log_daddr(i)] = tikle_comm->addr_recv.sin_addr.s_addr;
-		tikle_log_counters[tikle_log_saddr(i)] = ipip_hdr(sb)->saddr;
-		tikle_log_counters[tikle_log_event(i)] = tikle_trigger_flag;
-	}
-
-	tikle_log_counters[tikle_log_out(i)]++;
-
-	printk(KERN_INFO "- tikle post counters: %lu\n", tikle_log_counters[tikle_log_out(i)]);
-
-	printk(KERN_INFO "OUTCOMING @ remetente: " NIPQUAD_FMT " @ destinatario: " NIPQUAD_FMT " @ protocolo: %d\n",
-				NIPQUAD(ipip_hdr(sb)->saddr), NIPQUAD(ipip_hdr(sb)->daddr), ipip_hdr(sb)->protocol);
-
-	return NF_ACCEPT;
-}
-
-/**
- * Receive data from socket.
- * 
- * @param sock the socket
- * @param addr the host receiving data
- * @param buf the buff to write in
- * @param len the lenght of the buffer
- * @return the number of bytes read.
- * @sa tikle_sockdup_send()
- */
-static int tikle_sockudp_recv(struct socket* sock,
-		struct sockaddr_in* addr,
-		void *buf,
-		int len)
-{
-	int size = 0;
-	struct iovec iov;
-	struct msghdr msg;
-	mm_segment_t oldfs;
-
-	if (sock->sk == NULL) {
-		return 0;
-	}
-
-	iov.iov_base = buf;
-	iov.iov_len = len;
-
-	msg.msg_flags = 0;
-	msg.msg_name = addr;
-	msg.msg_namelen = sizeof(struct sockaddr_in);
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = NULL;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	size = sock_recvmsg(sock, &msg, len, msg. msg_flags);
-	set_fs(oldfs);
-
-	return size;
-}
-
-/**
- * Send data to socket
- *
- * @param sock the socket to write in
- * @param addr the host sending data.
- * @return the number of bytes sent.
- * @sa tikle_sockdup_recv()
- */
-static int tikle_sockudp_send(struct socket *sock,
-		struct sockaddr_in *addr,
-		void *buf, int len)
-{
-	int size = 0;
-	struct iovec iov;
-	struct msghdr msg;
-	mm_segment_t oldfs;
-
-	if (sock->sk == NULL) {
-		return 0;
-	}
-
-	iov.iov_base = buf;
-	iov.iov_len = len;
-
-	msg.msg_flags = 0;
-	msg.msg_name = addr;
-	msg.msg_namelen = sizeof(struct sockaddr_in);
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = NULL;
-
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	size = sock_sendmsg(sock, &msg, len);
-	set_fs(oldfs);
-
-	return size;
 }
 
 /**
@@ -1172,31 +599,7 @@ static void tikle_random(struct tikle_seeds *tikle_seed)
 	tikle_seed->s3 = TAUSWORTHE(tikle_seed->s3, 3, 11, 4294967280UL, 17);
 }
 
-/**
- * after ending experiment, host must
- * send your counters to controller
- */
-static void tikle_send_log(void)
-{
-	int tikle_err;
 
-	if ((tikle_err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &tikle_comm->sock_log)) < 0) {
-		printk(KERN_ERR "tikle alert: error %d while creating sockudp\n", -ENXIO);
-	}
-
-	memset(&tikle_comm->addr_log, 0, sizeof(struct sockaddr));
-	tikle_comm->addr_log.sin_family = AF_INET;
-	tikle_comm->addr_log.sin_addr.s_addr = tikle_comm->addr_recv.sin_addr.s_addr;
-	tikle_comm->addr_log.sin_port = htons(PORT_LOGGING);
-
-	if ((tikle_err = tikle_comm->sock_send->ops->connect(tikle_comm->sock_send,(struct sockaddr *)&tikle_comm->addr_send, sizeof(struct sockaddr), 0)) < 0) {
-		printk(KERN_ERR "tikle alert: error %d while connecting to socket\n", -tikle_err);
-		sock_release(tikle_comm->sock_send);
-		tikle_comm->sock_log = NULL; 
-	}
-
-	tikle_sockudp_send(tikle_comm->sock_log, &tikle_comm->addr_log, tikle_log_counters, sizeof(unsigned long) * log_size);
-}
 
 /**
  * Module initialization routines.
