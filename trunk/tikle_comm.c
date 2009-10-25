@@ -36,7 +36,7 @@ int tikle_sockudp_recv(struct socket *sock,
 	iov.iov_base = buf;
 	iov.iov_len = len;
 
-	msg.msg_flags = 0;
+	msg.msg_flags = O_NONBLOCK;
 	msg.msg_name = addr;
 	msg.msg_namelen = sizeof(struct sockaddr_in);
 	msg.msg_control = NULL;
