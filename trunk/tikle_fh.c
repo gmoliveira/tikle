@@ -10,8 +10,7 @@
 #include "tikle_defs.h"
 
 struct nf_hook_ops tikle_pre_hook, tikle_post_hook;
-unsigned long *tikle_log_counters;
-int log_size;
+int num_ips, log_size;
 
 /**
  * after ending experiment, host must
