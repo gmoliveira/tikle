@@ -70,17 +70,6 @@ static char tikle_buffer[TIKLE_PROCFSBUF_SIZE];
  */
 static struct nf_hook_ops tikle_pre_hook, tikle_post_hook;
 
-/*static const struct nf_queue_handler qh = {
-	.outfn = &tikle_delay_flow,
-	.name = "queue handler",
-};
-
-static struct delay_data {
-	struct sk_buff *sb;
-	struct nf_info *info;
-	struct timer_list *timer_queue;
-};*/
-
 /**
  * Struct to store log data
  */
@@ -325,26 +314,31 @@ static struct inode_operations tikle_iops = {
 };
 
 /**
+ *  Reinject a packet in the protocol stack after the delay
+ */
+/*static void delay_unlock(struct nf_queue_entry *foo)
+{
+	nf_reinject(foo, NF_ACCEPT);
+}*/
+
+/**
  * the below routines are responsible
  * to emulate packet delay behavior
  */
 /*static int tikle_delay_flow(struct sk_buff *pskb, struct nf_info *info, unsigned int queuenum, void *data)
 {
 	struct timer_list *timer;
-	struct delay_data *delay;
+	struct nf_queue_entry *foo;
 
 	timer = kmalloc(sizeof(struct timer_list), GFP_KERNEL | GFP_ATOMIC);
-	delay = kmalloc(sizeof(struct delay_data), GFP_KERNEL | GFP_ATOMIC);
 
-	delay->sb = pskb;
-	delay->info = info;
-	delay->timer_queue = timer;
+	foo->skb = pskb;
 
 	*
 	 * creating timer to emulate delay behavior
 	 *
 	init_timer(timer);
-	timer->data = (unsigned long) delay;
+	timer->data = (unsigned long) foo;
 	timer->function = (void *) delay_unlock;
 	timer->expires = jiffies + faultload[tikle_trigger_flag].op_value[0].num * HZ / 1000;
 	timer->base = &boot_tvec_bases;
@@ -352,15 +346,10 @@ static struct inode_operations tikle_iops = {
 	return 0;
 }*/
 
-/**
- *  Reinject a packet in the protocol stack after the delay
- */
-/*static void delay_unlock(struct delay_data *delay)
-{
-	nf_reinject(delay->sb, delay->info, NF_ACCEPT);
-	kfree(delay->timer_queue);
-	kfree(delay);
-}*/
+/*static const struct nf_queue_handler qh = {
+	.outfn = &tikle_delay_flow,
+	.name = "queue handler",
+};*/
 
 /**
  * Free all memory used in faultload structure
@@ -492,8 +481,6 @@ static void tikle_trigger_handling(void)
 			nf_register_hook(&tikle_post_hook);
 
 			//nf_register_queue_handler(PF_INET, &qh);
-
-			printk(KERN_INFO "tikle alert: hook registered\n");
 
 			/*
 			 * if timer corresponds
