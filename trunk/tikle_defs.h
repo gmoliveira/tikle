@@ -38,6 +38,7 @@
 #define PORT_LISTEN 12608
 #define PORT_CONNECT 21508
 #define PORT_LOGGING 12128 
+#define PORT_HALTING 24187 
 
 /**
  * Number of itens in opcode structure
@@ -70,9 +71,9 @@ extern int num_ips, log_size;
  */
 struct tikle_sockudp {
 	int flag;
-	struct task_struct *thread;
-	struct socket *sock_recv, *sock_send, *sock_log;
-	struct sockaddr_in addr_recv, addr_send, addr_log;
+	struct task_struct *thread, *thread_halt;
+	struct socket *sock_recv, *sock_send, *sock_log, *sock_halt;
+	struct sockaddr_in addr_recv, addr_send, addr_log, addr_halt;
 };
 
 extern struct tikle_sockudp *tikle_comm;

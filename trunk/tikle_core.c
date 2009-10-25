@@ -25,7 +25,7 @@
 #include <linux/module.h> /* well this is a module, right? */
 #include <linux/kernel.h> /* KERN_INFO stuff */
 #include <linux/init.h> /* module init macros */
-#include <net/netfilter/nf_queue.h>
+#include <net/netfilter/nf_queue.h> /* struct nf_queue_handler */
 #include <linux/netfilter.h> /* kernel protocol stack */
 #include <linux/netdevice.h> /* SOCK_DGRAM, KERNEL_DS an others */
 #include <linux/proc_fs.h> /* procfs manipulation */
@@ -47,7 +47,7 @@
 
 MODULE_AUTHOR("c2zlabs");
 MODULE_DESCRIPTION("faulT Injector for networK protocoL Evaluation");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPLv3");
 
 /**
  * New reference to proc_net
@@ -602,6 +602,47 @@ static void tikle_random(struct tikle_seeds *tikle_seed)
 	tikle_seed->s3 = TAUSWORTHE(tikle_seed->s3, 3, 11, 4294967280UL, 17);
 }
 
+/**
+ * function to perform user commands while test is running (not finished yet)
+ */
+static int tikle_halt(void)
+{
+	int tikle_err = -1, size = -1;
+	char tikle_halt[sizeof("tikle-halt")];
+
+	lock_kernel();
+	tikle_comm->flag = 1;
+	current->flags |= PF_NOFREEZE;
+	daemonize("thread_halt");
+	allow_signal(SIGKILL);
+	unlock_kernel();
+
+	if ((tikle_err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &tikle_comm->sock_halt)) < 0) {
+		printk(KERN_ERR "tikle alert: error %d while creating sockudp\n", -ENXIO);
+		tikle_comm->thread_halt = NULL;
+		tikle_comm->flag = 0;
+	}
+
+	memset(&tikle_comm->addr_halt, 0, sizeof(struct sockaddr)); 
+	tikle_comm->addr_halt.sin_family = AF_INET;
+	tikle_comm->addr_halt.sin_addr.s_addr = htonl(INADDR_ANY);
+	tikle_comm->addr_halt.sin_port = htons(PORT_HALTING);
+
+	if ((tikle_err = tikle_comm->sock_halt->ops->bind(tikle_comm->sock_halt,
+			(struct sockaddr *)&tikle_comm->addr_halt, sizeof(struct sockaddr))) < 0)
+		{
+		printk(KERN_ERR "tikle alert: error %d while binding to socket\n", -tikle_err);
+		sock_release(tikle_comm->sock_halt);
+		tikle_comm->sock_halt = NULL; 
+	}
+
+	size = tikle_sockudp_recv(tikle_comm->sock_halt, &tikle_comm->addr_halt, tikle_halt, sizeof("tikle-halt"));
+
+	printk(KERN_INFO "tikle alert: received %s\n", tikle_halt);
+
+	return 1;
+
+}
 
 
 /**
@@ -654,6 +695,14 @@ static int __init tikle_init(void)
 	tikle_shell_proc_entry->mode = S_IWUSR;
 
 	/*
+	 * sorting seeds
+	 */
+	tikle_random(&tikle_seed);
+
+	printk(KERN_INFO "tikle alert: module loaded\n");
+	printk(KERN_INFO "tikle alert: seeds are 0x%x 0x%x 0x%x\n", tikle_seed.s1, tikle_seed.s2, tikle_seed.s3);
+
+	/*
 	 * preparing thread to
 	 * init socket stuff
 	 */
@@ -661,22 +710,15 @@ static int __init tikle_init(void)
 	memset(tikle_comm, 0, sizeof(struct tikle_sockudp));
 
 	tikle_comm->thread = kthread_run((void *)tikle_sockudp_start, NULL, "tikle");
+	tikle_comm->thread_halt = kthread_run((void *)tikle_halt, NULL, "halt");
 
-	if (IS_ERR(tikle_comm->thread)) {
+	if ((IS_ERR(tikle_comm->thread)) || (IS_ERR(tikle_comm->thread_halt))) {
 		printk(KERN_ERR "tikle alert: error while running kernel thread\n");
 		kfree(tikle_comm);
 		tikle_comm = NULL;
 		tikle_err = -ENOMEM;
 		goto tikle_exit;		
 	}
-
-	/*
-	 * sorting seeds
-	 */
-	tikle_random(&tikle_seed);
-
-	printk(KERN_INFO "tikle alert: seeds are 0x%x 0x%x 0x%x\n", tikle_seed.s1, tikle_seed.s2, tikle_seed.s3);
-	printk(KERN_INFO "tikle alert: module loaded\n");
 
 	return tikle_err;
 
@@ -702,11 +744,13 @@ static void __exit tikle_exit(void)
 	/*
 	 * cleanup memory/socket
 	 */
-	if (!tikle_comm->sock_recv || tikle_comm->sock_send) {
+	if (!tikle_comm->sock_recv || tikle_comm->sock_send || tikle_comm->sock_halt) {
 		sock_release(tikle_comm->sock_recv);
 		sock_release(tikle_comm->sock_send);
+		sock_release(tikle_comm->sock_halt);
 		tikle_comm->sock_recv = NULL;
 		tikle_comm->sock_send = NULL;
+		tikle_comm->sock_halt = NULL;
 	}
 
 	kfree(tikle_comm);

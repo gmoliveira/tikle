@@ -181,11 +181,11 @@ static void tikle_recv_log(int num_ips, int event_count)
 
 int main(int argc, char **argv)
 {
-	int fdin, partition_num_ips = 0, tikle_sock_client, tikle_sock_server;
+	int fdin, partition_num_ips = 0, tikle_sock_client, tikle_sock_server, tikle_sock_halt;
 	int tikle_err, tikle_num_replies = 0, event_count = 0;
 	int return_val, numreqs = 30, broadcast = 1, n, i = 0, j = 0;
 	faultload_op **faultload, **faultload_pp, *faultload_p, *partition_ips = NULL;
-	struct sockaddr_in tikle_client_addr, tikle_server_addr;
+	struct sockaddr_in tikle_client_addr, tikle_server_addr, tikle_halt_addr;
 	char *source, tikle_reply[sizeof("tikle-received")];
 	socklen_t tikle_socklen;
 	struct stat statbuf;
@@ -253,6 +253,25 @@ int main(int argc, char **argv)
 	tikle_server_addr.sin_family = AF_INET;
 	tikle_server_addr.sin_port = htons(21508);
 	bind(tikle_sock_server, (struct sockaddr *)&tikle_server_addr, sizeof(tikle_server_addr));
+
+	/*
+	 * create a socket to allow user to sent commands during the testes
+	 */
+
+	memset(&tikle_halt_addr, 0, sizeof(struct sockaddr_in));
+
+	tikle_sock_halt = socket(AF_INET, SOCK_DGRAM, 0);
+	if (setsockopt(tikle_sock_halt, SOL_SOCKET, SO_BROADCAST, (void *)&broadcast, sizeof(broadcast)) < 0) {
+		printf("error while setting broadcast permission to socket");
+		close(fdin);
+		return 0;
+	}
+
+	tikle_halt_addr.sin_family = AF_INET;
+	tikle_halt_addr.sin_port = htons(24187);
+
+	//sendto(tikle_sock_halt, "tikle-halt", sizeof("tikle-halt"), 0,
+	//	(struct sockaddr *) &tikle_halt_addr, sizeof(tikle_halt_addr));
 
 	/* Check for partition mode */
 	if (faultload && *faultload && (*faultload)->opcode == DECLARE) {
