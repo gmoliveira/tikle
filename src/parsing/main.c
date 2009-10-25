@@ -234,7 +234,7 @@ int main(int argc, char **argv)
 
 	tikle_sock_client = socket(AF_INET, SOCK_DGRAM, 0);
 	if (setsockopt(tikle_sock_client, SOL_SOCKET, SO_BROADCAST, (void *)&broadcast, sizeof(broadcast)) < 0) {
-		printf("erro ao definir permissao para broadcast\n");
+		printf("error while setting broadcast permission to socket");
 		close(fdin);
 		return 0;
 	}
@@ -255,7 +255,7 @@ int main(int argc, char **argv)
 	bind(tikle_sock_server, (struct sockaddr *)&tikle_server_addr, sizeof(tikle_server_addr));
 
 	/*
-	 * create a socket to allow user to sent commands during the testes
+	 * create a socket to allow user to send commands during the testes
 	 */
 
 	memset(&tikle_halt_addr, 0, sizeof(struct sockaddr_in));
