@@ -105,7 +105,7 @@ extern unsigned int tikle_num_timers, tikle_trigger_flag;
  */
 extern faultload_op faultload[30];
 
-void tikle_trigger_handling(void);
+extern void tikle_trigger_handling(void);
 void tikle_flag_handling(unsigned long id);
 
 /**

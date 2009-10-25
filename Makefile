@@ -1,7 +1,7 @@
-obj-m += tikle.o 
-tikle-objs := tikle_hooks.o tikle_fh.o tikle_comm.o
+obj-m = tikle.o 
+tikle-objs := tikle_core.o tikle_hooks.o tikle_fh.o tikle_comm.o
 KVERSION := $(shell uname -r)
-KDIR = /lib/modules/$(KVERSION)/build
+KDIR := /lib/modules/$(KVERSION)/build
 
 all: module parser
 
@@ -11,10 +11,10 @@ cleanall: clean-module
 	rm -f *~ *odule*
 
 module:
-	make -C $(MODCFLAGS) $(KDIR) M=$(PWD) modules
+	make -C $(MODCFLAGS) $(KDIR) M=$(PWD) SUBDIRS=$(PWD) modules
 
 clean-module: clean-parser
-	make -C /lib/modules/$(KVERSION)/build M=$(PWD) clean
+	make -C $(KDIR) M=$(PWD) clean
 
 docs:
 	doxygen src/docs.mk && cd docs/latex && make && cd ../..

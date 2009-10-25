@@ -9,7 +9,6 @@
 #include "tikle_defs.h"
 
 struct tikle_sockudp *tikle_comm = NULL;
-struct tikle_timer *tikle_timers;
 faultload_op faultload[30];
 unsigned int tikle_num_timers = 0, tikle_trigger_flag = 0;
 
