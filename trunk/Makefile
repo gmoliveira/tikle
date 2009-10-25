@@ -11,7 +11,7 @@ cleanall: clean-module
 	rm -f *~ *odule*
 
 module:
-	make -C $(MODCFLAGS) $(KDIR) M=$(PWD) SUBDIRS=$(PWD) modules
+	make -C $(MODCFLAGS) $(KDIR) M=$(PWD) modules
 
 clean-module: clean-parser
 	make -C $(KDIR) M=$(PWD) clean
