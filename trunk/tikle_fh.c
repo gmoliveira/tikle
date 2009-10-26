@@ -4,6 +4,7 @@
 #include <linux/version.h>
 #include <linux/netfilter.h> /* kernel protocol stack */
 #include <linux/netdevice.h> /* SOCK_DGRAM, KERNEL_DS an others */
+#include <linux/kthread.h>
 #undef __KERNEL__
 #include <linux/netfilter_ipv4.h>
 #include "tikle_hooks.h"
@@ -39,12 +40,48 @@ static void tikle_send_log(void)
 }
 
 /**
+ *  * Stop the trigger.
+ *   *
+ *    * @param base the actual jiffies.
+ *     * @return void
+ *      */
+static void tikle_stop_trigger(unsigned int base)
+{
+	lock_kernel();
+	current->flags |= PF_NOFREEZE;
+	daemonize("thread stop trigger");
+	allow_signal(SIGKILL);
+	unlock_kernel();
+
+	/*
+	 * do you believe in micracles?
+	 * not a method, not a technique,
+	 * just cheating a kernel timer ;]
+	 * nf_[un]register_hook() does not
+	 * execute friendly with timers
+	 * since its atomic implementation
+	 *
+	 * for more information go to:
+	 * http://www.makelinux.net/ldd3/chp-7-sect-4.shtml
+	 */ 
+	for (; jiffies <= (base + msecs_to_jiffies(faultload[tikle_timers[tikle_num_timers-1].trigger_id].op_value[0].num * 1000)););
+
+	nf_unregister_hook(&tikle_pre_hook);
+	nf_unregister_hook(&tikle_post_hook);
+
+	//nf_unregister_queue_handler(PF_INET, &qh);
+
+	tikle_send_log();
+}
+
+/**
  * Setup trigger handling
  * @return void
  */
 void tikle_trigger_handling(void)
 {
 	unsigned int i = 0, base;
+	struct task_struct *stop;
 
 	/*
 	 * setting up triggers
@@ -109,6 +146,7 @@ void tikle_trigger_handling(void)
 			 * to avoid console freezing
 			 */
 			/* not handled here */
+			stop = kthread_run((void *)tikle_stop_trigger, (unsigned int *)base, "thread stop trigger");
 		}
 		add_timer(&tikle_timers[i].trigger);
 	}
@@ -148,7 +186,7 @@ void tikle_flag_handling(unsigned long id)
 	/*
 	 * stop trigger handler
 	 */
-	if (tikle_trigger_flag == tikle_num_timers-1) {
+	/*if (tikle_trigger_flag == tikle_num_timers-1) {
 		nf_unregister_hook(&tikle_pre_hook);
 		nf_unregister_hook(&tikle_post_hook);
 
@@ -157,5 +195,5 @@ void tikle_flag_handling(unsigned long id)
 		printk(KERN_INFO "tikle alert: killing timer %d\n\texecution ended\n", tikle_trigger_flag);
 
 		tikle_send_log();
-	}
+	}*/
 }
