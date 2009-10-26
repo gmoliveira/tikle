@@ -109,9 +109,9 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	
 	tikle_log_counters[tikle_log_in(i)]++;
 
-	printk(KERN_INFO "- tikle pre counters: %lu\n", tikle_log_counters[tikle_log_in(i)]);
+	TDEBUG("- tikle pre counters: %lu\n", tikle_log_counters[tikle_log_in(i)]);
 
-	printk(KERN_INFO "INCOMING @ remetente: " NIPQUAD_FMT " @ destinatario: " NIPQUAD_FMT " @ protocolo: %d\n",
+	TDEBUG("INCOMING @ remetente: " NIPQUAD_FMT " @ destinatario: " NIPQUAD_FMT " @ protocolo: %d\n",
 				NIPQUAD(ipip_hdr(sb)->saddr), NIPQUAD(ipip_hdr(sb)->daddr), ipip_hdr(sb)->protocol);
 	/*
 	 * packets will be intercepted only if a timer is active. if
@@ -125,7 +125,7 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	i = tikle_timers[tikle_trigger_flag].trigger_id;
 	
 	do {
-		printk(KERN_INFO "i=%d ; opcode: %d (%s) ; next_op=%d\n",
+		TDEBUG("i=%d ; opcode: %d (%s) ; next_op=%d\n",
 			i, faultload[i].opcode, op_names[faultload[i].opcode], faultload[i].next_op);
 		
 		/* Opcode handlers */
@@ -334,9 +334,9 @@ unsigned int tikle_post_hook_function(unsigned int hooknum,
 
 	tikle_log_counters[tikle_log_out(i)]++;
 
-	printk(KERN_INFO "- tikle post counters: %lu\n", tikle_log_counters[tikle_log_out(i)]);
+	TDEBUG("- tikle post counters: %lu\n", tikle_log_counters[tikle_log_out(i)]);
 
-	printk(KERN_INFO "OUTCOMING @ remetente: " NIPQUAD_FMT " @ destinatario: " NIPQUAD_FMT " @ protocolo: %d\n",
+	TDEBUG("OUTCOMING @ remetente: " NIPQUAD_FMT " @ destinatario: " NIPQUAD_FMT " @ protocolo: %d\n",
 				NIPQUAD(ipip_hdr(sb)->saddr), NIPQUAD(ipip_hdr(sb)->daddr), ipip_hdr(sb)->protocol);
 
 	return NF_ACCEPT;

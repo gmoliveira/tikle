@@ -372,7 +372,7 @@ static int tikle_sockudp_start(void)
 	 * looping to receive data from other hosts
 	 * and after that sends a confirmation message
 	 */
-	printk(KERN_INFO "- start------------------------------------\n");
+	TDEBUG("- start------------------------------------\n");
 	memset(faultload, 0, sizeof(faultload));
 	
 	size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
@@ -381,8 +381,8 @@ static int tikle_sockudp_start(void)
 	if (size < 0) {
 		printk(KERN_ERR "tikle alert: error %d while getting datagram\n", size);
 	} else {
-		printk(KERN_INFO "num_ips=%d\n", num_ips);
-		printk(KERN_INFO "tikle alert: received %d bytes\n", size);
+		TDEBUG("num_ips=%d\n", num_ips);
+		TDEBUG("tikle alert: received %d bytes\n", size);
 	}
 	if (num_ips) {
 		size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
@@ -393,13 +393,13 @@ static int tikle_sockudp_start(void)
 		} else {
 			int j;
 			
-			printk(KERN_INFO "declare={");
+			TDEBUG("declare={");
 			for (j = 0; j < num_ips; j++) {
-				printk("%lu%s", partition_ips[j], (j == (num_ips-1) ? "" : ","));
+				TDEBUG("%lu%s", partition_ips[j], (j == (num_ips-1) ? "" : ","));
 			}
-			printk("}\n");
+			TDEBUG("}\n");
 			
-			printk(KERN_INFO "tikle alert: received %d bytes\n", size);
+			TDEBUG("tikle alert: received %d bytes\n", size);
 		}
 	}
 
@@ -411,22 +411,22 @@ static int tikle_sockudp_start(void)
 				if (faultload[i].opcode == AFTER) {
 					trigger_count++;
 				}
-				printk(KERN_INFO "opcode: %d\n", faultload[i].opcode);
+				TDEBUG("opcode: %d\n", faultload[i].opcode);
 				break;
 			case 1: /* Protocol */
 				size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 					&faultload[i].protocol, sizeof(faultload_protocol));
-				printk(KERN_INFO "protocol: %d\n", faultload[i].protocol);
+				TDEBUG("protocol: %d\n", faultload[i].protocol);
 				break;
 			case 2: /* Occur type (TEMPORAL, PACKETS, PERCT) */
 				size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 					&faultload[i].occur_type, sizeof(faultload_num_type));
-				printk(KERN_INFO "occur_type: %d\n", faultload[i].occur_type);
+				TDEBUG("occur_type: %d\n", faultload[i].occur_type);
 				break;
 			case 3: /* Number of ops */
 				size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 					&faultload[i].num_ops, sizeof(unsigned short int));
-				printk(KERN_INFO "num_ops: %d\n", faultload[i].num_ops);
+				TDEBUG("num_ops: %d\n", faultload[i].num_ops);
 				break;
 			case 4: /* Operand types */
 				{
@@ -446,7 +446,7 @@ static int tikle_sockudp_start(void)
 						faultload[i].op_type, sizeof(faultload_op_type) * faultload[i].num_ops);
 
 					for (k = 0; k < faultload[i].num_ops; k++) {
-						printk(KERN_INFO "op_type%d [%d]\n", k+1, faultload[i].op_type[k]);
+						TDEBUG("op_type%d [%d]\n", k+1, faultload[i].op_type[k]);
 					}
 				}
 				break;
@@ -465,7 +465,7 @@ static int tikle_sockudp_start(void)
 								size += tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 								faultload[i].op_value[k].str.value, faultload[i].op_value[k].str.length);
 								
-								printk(KERN_INFO "%d string [%s] (len: %d)\n", k+1, faultload[i].op_value[k].str.value,
+								TDEBUG("%d string [%s] (len: %d)\n", k+1, faultload[i].op_value[k].str.value,
 									faultload[i].op_value[k].str.length);
 								break;
 							case ARRAY:
@@ -477,19 +477,19 @@ static int tikle_sockudp_start(void)
 									size += tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 										&faultload[i].op_value[k].array.nums, sizeof(unsigned long) * faultload[i].op_value[k].array.count);
 									
-									printk(KERN_INFO "%d array {", k+1);
+									TDEBUG("%d array {", k+1);
 									for (j = 0; j < faultload[i].op_value[k].array.count; j++) {
-										printk("%ld%s", faultload[i].op_value[k].array.nums[j],
+										TDEBUG("%ld%s", faultload[i].op_value[k].array.nums[j],
 											(j == (faultload[i].op_value[k].array.count-1) ? "" : ","));
 									}
-									printk("}\n");
+									TDEBUG("}\n");
 								}
 								break;
 							default:
 								size += tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 									&faultload[i].op_value[k].num, sizeof(unsigned long));
 									
-								printk(KERN_INFO "%d number: %ld\n", k+1, faultload[i].op_value[k].num);
+								TDEBUG("%d number: %ld\n", k+1, faultload[i].op_value[k].num);
 								break;
 						}
 					}
@@ -498,26 +498,26 @@ static int tikle_sockudp_start(void)
 			case 6: /* Extended value */
 				size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 							&faultload[i].extended_value, sizeof(int));
-				printk(KERN_INFO "Extended value: %d\n", faultload[i].extended_value);
+				TDEBUG("Extended value: %d\n", faultload[i].extended_value);
 				break;
 			case 7: /* Label */
 				size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 							&faultload[i].label, sizeof(unsigned long));
-				printk(KERN_INFO "Label: %ld\n", faultload[i].label);
+				TDEBUG("Label: %ld\n", faultload[i].label);
 				break;
 			case 8: /* Block type (START, STOP) */
 				size = tikle_sockudp_recv(tikle_comm->sock_recv,
 							&tikle_comm->addr_recv,	&faultload[i].block_type,
 							sizeof(short int));
-				printk(KERN_INFO "Block type: %d\n", faultload[i].block_type);
+				TDEBUG("Block type: %d\n", faultload[i].block_type);
 				break;
 			case 9: /* Control op number */
 				size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
 							&faultload[i].next_op, sizeof(unsigned int));
-				printk(KERN_INFO "Op number: %d\n", faultload[i].next_op);
+				TDEBUG("Op number: %d\n", faultload[i].next_op);
 				break;
 			default:
-				printk(KERN_INFO "tikle alert: unexpected type\n");
+				TDEBUG("tikle alert: unexpected type\n");
 				break;
 		}
 		
@@ -542,7 +542,7 @@ next:
 		}
 		count++;
 	}
-	printk(KERN_INFO "- end------------------------------------\n");
+	TDEBUG("- end------------------------------------\n");
 
 	/*
 	 * get the controller ip address
@@ -609,7 +609,7 @@ next:
 		 */
 		if (num_ips) {
 			/* -1 because the STOP in AFTER part */
-			printk(KERN_INFO "tikle alert: log_size = %d (timers) * %d (ips)\n", (tikle_num_timers-1), num_ips);
+			TDEBUG("tikle alert: log_size = %d (timers) * %d (ips)\n", (tikle_num_timers-1), num_ips);
 			
 			log_size = (tikle_num_timers-1) * num_ips * 5;
 			tikle_log_counters = kcalloc(log_size, sizeof(unsigned long), GFP_KERNEL | GFP_ATOMIC);
@@ -740,7 +740,7 @@ static int __init tikle_init(void)
 	tikle_random(&tikle_seed);
 
 	printk(KERN_INFO "tikle alert: module loaded\n");
-	printk(KERN_INFO "tikle alert: seeds are 0x%x 0x%x 0x%x\n", tikle_seed.s1, tikle_seed.s2, tikle_seed.s3);
+	TDEBUG("tikle alert: seeds are 0x%x 0x%x 0x%x\n", tikle_seed.s1, tikle_seed.s2, tikle_seed.s3);
 
 	/*
 	 * preparing thread to

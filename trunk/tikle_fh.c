@@ -109,7 +109,7 @@ void tikle_trigger_handling(void)
 	/*
 	 * setting up triggers
  	 */
-	printk(KERN_INFO "TRIGGERS:\n");
+	TDEBUG("TRIGGERS:\n");
 
 	for (i = 0; i < tikle_num_timers; i++) {
 		init_timer(&tikle_timers[i].trigger);
@@ -126,7 +126,7 @@ void tikle_trigger_handling(void)
 			tikle_timers[i].trigger.data = tikle_timers[i].trigger_id;
 		}
 		
-		printk(KERN_INFO "Registering timer %d; trigger_id=%d ; trigger_data=%ld\n",
+		TDEBUG("Registering timer %d; trigger_id=%d ; trigger_data=%ld\n",
 			i, tikle_timers[i].trigger_id, tikle_timers[i].trigger.data);
 
 		/*
@@ -173,7 +173,7 @@ void tikle_trigger_handling(void)
 		}
 		add_timer(&tikle_timers[i].trigger);
 	}
-	printk(KERN_INFO "--------------------------------\n");
+	TDEBUG("--------------------------------\n");
 }
 
 /**
