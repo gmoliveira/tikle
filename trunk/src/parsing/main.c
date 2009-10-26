@@ -291,13 +291,6 @@ int main(int argc, char **argv)
 			/* Send the number of ips envolved in the experiment */
 			sendto(tikle_sock_client, &partition_num_ips, sizeof(int), 0,
 				(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));
-
-			/* 
-			 * Send the stations IP address to avoid the requirement of a
-			 * configured environment (closed LAN) to execute testes
-			 */
-			/*sendto(tikle_sock_client, &partition_ips->op_value[0].array.nums, sizeof(faultload_value_type), 0,
-				(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));*/
 		} else {
 			int i = 0;
 			
@@ -320,6 +313,16 @@ int main(int argc, char **argv)
 						 */
 						sendto(tikle_sock_client, &partition_num_ips, sizeof(int), 0,
 							(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));
+							
+						/* 
+						 * Send the stations IP address to avoid the requirement of a
+						 * configured environment (closed LAN) to execute testes
+						 */
+						if (partition_num_ips) {
+							sendto(tikle_sock_client, &partition_ips->op_value[0].array.nums,
+								partition_num_ips * sizeof(unsigned long), 0,
+								(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));
+						}
 					}
 				}
 
