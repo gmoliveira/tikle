@@ -68,11 +68,11 @@ static void tikle_send_log(void)
 }
 
 /**
- *  * Stop the trigger.
- *   *
- *    * @param base the actual jiffies.
- *     * @return void
- *      */
+ * Stop the trigger.
+ *
+ * @param base the actual jiffies.
+ * @return void
+ */
 static void tikle_stop_trigger(unsigned int base)
 {
 	lock_kernel();
