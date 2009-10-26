@@ -31,6 +31,9 @@
 #include "tikle_hooks.h"
 #include "tikle_defs.h"
 
+/**
+ * Extern variables
+ */
 struct tikle_sockudp *tikle_comm = NULL;
 faultload_op faultload[30];
 unsigned int tikle_num_timers = 0, tikle_trigger_flag = 0;
@@ -102,7 +105,7 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 		if (i > 0) {
 			i--;
 		}
-		printk(KERN_INFO "IP: " NIPQUAD_FMT "\n\n", NIPQUAD(ipip_hdr(sb)->saddr));
+		TINFO("IP: " NIPQUAD_FMT "\n\n", NIPQUAD(ipip_hdr(sb)->saddr));
 		
 		tikle_log_counters[tikle_log_daddr(i)] = tikle_comm->addr_recv.sin_addr.s_addr;
 		tikle_log_counters[tikle_log_saddr(i)] = ipip_hdr(sb)->saddr;

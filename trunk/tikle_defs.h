@@ -31,17 +31,22 @@
 # define TDEBUG(fmt, ...) /* nothing */
 #endif
 
+#define TERROR(fmt, ...) printk(KERN_ERR "tikle error: " fmt, ##__VA_ARGS__)
+#define TALERT(fmt, ...) printk(KERN_NOTICE "tikle alert: " fmt, ##__VA_ARGS__)
+#define TINFO(fmt, ...) printk(KERN_INFO "tikle info: " fmt, ##__VA_ARGS__)
+
 #include <linux/ip.h> /* ipip_hdr(const struct sk_buff *sb) */
 #include <linux/in.h> /* sockaddr_in and other macros */
-
-#include "tikle_types.h"
+#include "tikle_types.h" /* tikle type definitions */
 
 /**
  * it depends of faultload size
  */
-
 #define TIKLE_PROCFSBUF_SIZE 128
 
+/**
+ * Ports
+ */
 #define PORT_LISTEN 12608
 #define PORT_CONNECT 21508
 #define PORT_LOGGING 12128 
@@ -59,18 +64,8 @@
 	if (_var) {           \
 		kfree(_var);      \
 	}
-	
-#define TAUSWORTHE(s,a,b,c,d) ((s&c)<<d) ^ (((s <<a) ^ s)>>b)
-#define LCG(n) (69069 * n)
-
-#define tikle_log_daddr(_i) _i*5
-#define tikle_log_saddr(_i) _i*5+1
-#define tikle_log_event(_i) _i*5+2
-#define tikle_log_in(_i)    _i*5+3
-#define tikle_log_out(_i)   _i*5+4
 
 extern unsigned long *tikle_log_counters;
-
 extern int num_ips, log_size;
 
 /**
@@ -104,6 +99,11 @@ struct tikle_timer {
 extern struct tikle_timer *tikle_timers;
 
 /**
+ * Register trigger timers
+ */
+extern void tikle_trigger_handling(void);
+
+/**
  * Control flags
  */
 extern unsigned int tikle_num_timers, tikle_trigger_flag;
@@ -118,14 +118,14 @@ extern faultload_op faultload[30];
  */
 extern unsigned long partition_ips[30];
 
-extern void tikle_trigger_handling(void);
-void tikle_flag_handling(unsigned long id);
-
 /**
  * Struct to register hook operations
  */
 extern struct nf_hook_ops tikle_pre_hook, tikle_post_hook;
 
+/**
+ * Socket wrappers
+ */
 extern int tikle_sockudp_send(struct socket *sock,	struct sockaddr_in *addr, void *buf, int len);
 extern int tikle_sockudp_recv(struct socket *sock, struct sockaddr_in *addr, void *buf, int len);
 
