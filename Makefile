@@ -2,6 +2,14 @@ obj-m = tikle.o
 tikle-objs := tikle_core.o tikle_hooks.o tikle_fh.o tikle_comm.o
 KVERSION := $(shell uname -r)
 KDIR := /lib/modules/$(KVERSION)/build
+DEBUG = y
+
+ifeq ($(DEBUG),y)
+  DEBFLAGS = -DTIKLE_DEBUG
+endif
+
+EXTRA_CFLAGS += $(DEBFLAGS)
+
 
 all: module parser
 

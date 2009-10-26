@@ -24,6 +24,13 @@
 #ifndef TIKLE_DEFS_H
 #define TIKLE_DEFS_H
 
+#undef TDEBUG
+#ifdef TIKLE_DEBUG
+# define TDEBUG(fmt, ...) printk(KERN_DEBUG "tikle debug: " fmt, ##__VA_ARGS__)
+#else
+# define TDEBUG(fmt, ...) /* nothing */
+#endif
+
 #include <linux/ip.h> /* ipip_hdr(const struct sk_buff *sb) */
 #include <linux/in.h> /* sockaddr_in and other macros */
 
