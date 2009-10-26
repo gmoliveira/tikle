@@ -181,11 +181,11 @@ static void tikle_recv_log(int num_ips, int event_count)
 
 int main(int argc, char **argv)
 {
-	int fdin, partition_num_ips = 0, tikle_sock_client, tikle_sock_server, tikle_sock_halt;
+	int fdin, partition_num_ips = 0, tikle_sock_client, tikle_sock_server;//, tikle_sock_halt;
 	int tikle_err, tikle_num_replies = 0, event_count = 0;
 	int return_val, numreqs = 30, broadcast = 1, n, i = 0, j = 0;
 	faultload_op **faultload, **faultload_pp, *faultload_p, *partition_ips = NULL;
-	struct sockaddr_in tikle_client_addr, tikle_server_addr, tikle_halt_addr;
+	struct sockaddr_in tikle_client_addr, tikle_server_addr;//, tikle_halt_addr;
 	char *source, tikle_reply[sizeof("tikle-received")];
 	socklen_t tikle_socklen;
 	struct stat statbuf;
@@ -257,7 +257,7 @@ int main(int argc, char **argv)
 	/*
 	 * create a socket to allow user to send commands during the testes
 	 */
-
+/*
 	memset(&tikle_halt_addr, 0, sizeof(struct sockaddr_in));
 
 	tikle_sock_halt = socket(AF_INET, SOCK_DGRAM, 0);
@@ -272,14 +272,14 @@ int main(int argc, char **argv)
 
 	//sendto(tikle_sock_halt, "tikle-halt", sizeof("tikle-halt"), 0,
 	//	(struct sockaddr *) &tikle_halt_addr, sizeof(tikle_halt_addr));
-
+*/
 	/* Check for partition mode */
 	if (faultload && *faultload && (*faultload)->opcode == DECLARE) {
 		partition_ips = *faultload;
 		partition_num_ips = (*faultload)->op_value[0].array.count;
 		faultload++;
 	}
-		
+
 	/* Sending opcode information */	
 	while (faultload && *faultload) {
 		faultload_p = *faultload;
@@ -291,6 +291,13 @@ int main(int argc, char **argv)
 			/* Send the number of ips envolved in the experiment */
 			sendto(tikle_sock_client, &partition_num_ips, sizeof(int), 0,
 				(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));
+
+			/* 
+			 * Send the stations IP address to avoid the requirement of a
+			 * configured environment (closed LAN) to execute testes
+			 */
+			/*sendto(tikle_sock_client, &partition_ips->op_value[0].array.nums, sizeof(faultload_value_type), 0,
+				(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));*/
 		} else {
 			int i = 0;
 			
@@ -305,8 +312,7 @@ int main(int argc, char **argv)
 					 * Send the information for each ips declared 
 					 * on @declare { } block, when used.
 					 */
-					tikle_client_addr.sin_addr.s_addr = (in_addr_t) partition_ips->op_value[0].array.nums[i];
-				
+					tikle_client_addr.sin_addr.s_addr = (in_addr_t) partition_ips->op_value[0].array.nums[i];	
 					if (partition_ips == *(faultload-1)) {
 						/* 
 						 * Send the number of ips envolved in the experiment
