@@ -382,7 +382,7 @@ static int tikle_sockudp_start(void)
 		printk(KERN_ERR "tikle alert: error %d while getting datagram\n", size);
 	} else {
 		TDEBUG("num_ips=%d\n", num_ips);
-		TDEBUG("tikle alert: received %d bytes\n", size);
+		TDEBUG("received %d bytes\n", size);
 	}
 	if (num_ips) {
 		size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
@@ -399,7 +399,7 @@ static int tikle_sockudp_start(void)
 			}
 			TDEBUG("}\n");
 			
-			TDEBUG("tikle alert: received %d bytes\n", size);
+			TDEBUG("received %d bytes\n", size);
 		}
 	}
 
@@ -517,7 +517,7 @@ static int tikle_sockudp_start(void)
 				TDEBUG("Op number: %d\n", faultload[i].next_op);
 				break;
 			default:
-				TDEBUG("tikle alert: unexpected type\n");
+				TDEBUG("unexpected type\n");
 				break;
 		}
 		
@@ -609,7 +609,7 @@ next:
 		 */
 		if (num_ips) {
 			/* -1 because the STOP in AFTER part */
-			TDEBUG("tikle alert: log_size = %d (timers) * %d (ips)\n", (tikle_num_timers-1), num_ips);
+			TDEBUG("log_size = %d (timers) * %d (ips)\n", (tikle_num_timers-1), num_ips);
 			
 			log_size = (tikle_num_timers-1) * num_ips * 5;
 			tikle_log_counters = kcalloc(log_size, sizeof(unsigned long), GFP_KERNEL | GFP_ATOMIC);
