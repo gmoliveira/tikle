@@ -126,7 +126,7 @@ extern struct nf_hook_ops tikle_pre_hook, tikle_post_hook;
 /**
  * Socket wrappers
  */
-extern int tikle_sockudp_send(struct socket *sock,	struct sockaddr_in *addr, void *buf, int len);
+extern int tikle_sockudp_send(struct socket *sock, struct sockaddr_in *addr, void *buf, int len);
 extern int tikle_sockudp_recv(struct socket *sock, struct sockaddr_in *addr, void *buf, int len);
 
 #endif /* TIKLE_DEFS_H */
