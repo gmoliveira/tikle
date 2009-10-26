@@ -25,11 +25,8 @@
 #define __NO_VERSION__
 #include <linux/module.h>
 #include <linux/version.h>
-#include <linux/netfilter.h> /* kernel protocol stack */
-#include <linux/netdevice.h> /* SOCK_DGRAM, KERNEL_DS an others */
 #include <linux/proc_fs.h> /* procfs manipulation */
 #include <net/net_namespace.h> /* proc_net stuff */
-#include <linux/sched.h> /* current-euid() */
 #include "tikle_defs.h"
 
 /**

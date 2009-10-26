@@ -143,7 +143,7 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 				break;
 			case ELSE:
 				/* The if-block reached the ELSE,
-						 * then skip to out of end if
+				 * then skip to out of end if
 				 */
 				/* i = faultload[i].op_num; */
 				break;
@@ -151,16 +151,6 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 				/*
 				 * e.g.
 				 * tcp drop progressive 10%;
-				 * 
-				 * tcp: faultload[i].protocol = TCP_PROTOCOL
-				 * drop: faultload[i].op_value[0].num
-				 * Possible values:
-				 * 	ACT_DROP (1)
-				 *	ACT_DUPLICATE (2)
-				 * 	ACT_DELAY (3)
-				 * 
-				 * progressive: faultload[i].extended_value
-				 * 10: faultload[i].op_value[1].num
 				 */
 				if (faultload[i].protocol == ipip_hdr(sb)->protocol) {
 					/*
@@ -185,14 +175,6 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 				 * after (10p) do
 				 *   ...
 				 * end
-				 * 
-				 * 10: faultload[i].op_value[0]
-				 *  p: faultload[i].occur_type
-				 * Possible values:
-				 *   TEMPORAL
-				 *   NPACKETS
-				 *   PERCET
-				 *   NONE (only the number was specified)
 				 */
 				break;
 			case WHILE:
@@ -201,14 +183,6 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 				 * while (10s) do
 				 *   ...
 				 * end
-				 * 
-				 * 10: faultload[i].op_value[0]
-				 *  s: faultload[i].occur_type
-				 * Possible values:
-				 *   TEMPORAL
-				 *   NPACKETS
-				 *   PERCET
-				 *   NONE (only the number was specified)
 				 */
 				break;
 			case IF:
@@ -217,18 +191,6 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 				 * if (%ip is equal 127.0.0.1) then
 				 *   ...
 				 * end if
-				 * 
-				 * %ip: faultload[i].op_value[0]
-				 *   In this case: op_type[0] == VAR
-				 * 
-				 * 'is equal': faultload[i].extended_value
-				 * 
-				 * Possible operators:
-				 * 		'is equal'     = 1
-				 * 		'is not equal' = 2
-				 * 
-				 * 127.0.0.1: faultload[i].op_value[1] (inet_addr)
-				 *            faultload[i].op_type[1] == NUMBER
 				 */
 				/*
 				 * if (!(skip = tikle_handler_if(faultload[i]))) {
@@ -240,12 +202,6 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 				/* 
 				 * e.g.
 				 * set 127.0.0.1 -> FLAG
-				 * 
-				 * 127.0.0.1: faultload[i].op_value[0] (inet_addr)
-				 *            faultload[i].op_type[0] == NUMBER
-				 * 
-				 * FLAG: faultload[i].op_value[1]
-				 *       faultload[i].op_type[1] == STRING
 				 */
 				break;
 			case FOREACH:
@@ -259,20 +215,13 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 			case PARTITION:
 				/* 
 				 * e.g.
-				 * PARTITION BETWEEN A AND B 
-				 * 
-				 * A: faultload[i].op_value[0]
-				 *    faultload[i].op_type[0] == STRING
-				 * 
-				 * B: faultload[i].op_value[1]
-				 *    faultload[i].op_type[0] == STRING
+				 * PARTITION {ip1, ip2} {ip3, ip4} ...
 				 */
 				/*
 				 * loop into partitions to identify allowed communications 
 				 */
 				for (array = 0; array < faultload[i].num_ops; array++) {
 					for (position = 0; position < faultload[i].op_value[array].array.count; position++) {
-
 						/* 
 						 * since kernel 2.6.22 the API to retrieve data from struct sk_buff *pskb
 						 * by typing pskb->nh.iph->saddr has been updated and now it's done by
@@ -287,7 +236,6 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 				}
 
 				if (array_local == array_remote) {
-
 					/*
 					 * if, and only if, the source address of the packet is included
 					 * is included in the same partition as destination address, the
