@@ -106,6 +106,11 @@ extern unsigned int tikle_num_timers, tikle_trigger_flag;
  */
 extern faultload_op faultload[30];
 
+/**
+ * Ips used in partition experiment
+ */
+extern unsigned long partition_ips[30];
+
 extern void tikle_trigger_handling(void);
 void tikle_flag_handling(unsigned long id);
 

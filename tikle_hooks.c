@@ -1,3 +1,26 @@
+/* 
+ * Tikle kernel module
+ * Copyright (C) 2009  Felipe 'ecl' Pena
+ *                     Gustavo 'nst' Oliveira
+ * 
+ * Contact us at: #c2zlabs@freenode.net - www.c2zlabs.com
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Also thanks to Higor 'enygmata' Euripedes
+ */
+
 #include <linux/kernel.h>
 #define __NO_VERSION__
 #include <linux/module.h>
@@ -16,6 +39,21 @@ static const char *op_names[] = {
 	"COMMAND", "AFTER", "WHILE", "HOST", "IF", "ELSE",
 	"END_IF", "END", "SET", "FOREACH", "PARTITION", "DECLARE"
 };
+
+/**
+ * Check if the ip is in the list
+ */
+static inline int tikle_ip_check(unsigned long ip, unsigned long *ip_list)
+{
+	register int i = 0;
+	
+	for (; ip_list[i]; i++) {
+		if (ip == ip_list[i]) {
+			return 1;
+		}
+	}	
+	return 0;
+}
 
 /**
  * Begin script interpretation.
@@ -38,6 +76,10 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	int i = 0, array, position, log_found_flag = -1;
 
 	printk(KERN_INFO "tikle alert: hook function called\n");
+	
+	if (num_ips && tikle_ip_check(ipip_hdr(sb)->saddr, partition_ips) == 0) {
+		return NF_DROP;
+	}
 
 	/*
 	 * log counters dummy version

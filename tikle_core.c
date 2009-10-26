@@ -78,7 +78,7 @@ static unsigned long tikle_buffer_size = 0;
 
 unsigned long *tikle_log_counters = NULL;
 
-//faultload_op *partition_ips = NULL;
+unsigned long partition_ips[30];
 
 /**
  * procfs structures.
@@ -384,15 +384,24 @@ static int tikle_sockudp_start(void)
 		printk(KERN_INFO "num_ips=%d\n", num_ips);
 		printk(KERN_INFO "tikle alert: received %d bytes\n", size);
 	}
-	/*size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
-		&partition_ips->op_value[0].array.nums, sizeof(faultload_value_type));
+	if (num_ips) {
+		size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv,
+			&partition_ips, sizeof(unsigned long) * num_ips);
 	
-	if (size < 0) {
-		printk(KERN_ERR "tikle alert: error %d while getting datagram\n", size);
-	} else {
-		printk(KERN_INFO "declare=%lu\n", partition_ips->op_value[0].array.nums[0]);
-		printk(KERN_INFO "tikle alert: received %d bytes\n", size);
-	}*/
+		if (size < 0) {
+			printk(KERN_ERR "tikle alert: error %d while getting datagram\n", size);
+		} else {
+			int j;
+			
+			printk(KERN_INFO "declare={");
+			for (j = 0; j < num_ips; j++) {
+				printk("%lu%s", partition_ips[j], (j == (num_ips-1) ? "" : ","));
+			}
+			printk("}\n");
+			
+			printk(KERN_INFO "tikle alert: received %d bytes\n", size);
+		}
+	}
 
 	while (1) {
 		switch (count) {
