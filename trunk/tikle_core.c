@@ -529,7 +529,7 @@ static int tikle_sockudp_start(void)
 		if (size < 0) {
 			printk(KERN_ERR "tikle alert: error %d while getting datagram\n", size);
 		} else {				
-			printk(KERN_INFO "tikle alert: received %d bytes\n", size);
+			TDEBUG("received %d bytes\n", size);
 		}
 next:
 		if ((count+1) == NUM_FAULTLOAD_OP) {

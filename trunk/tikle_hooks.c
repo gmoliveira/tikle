@@ -35,10 +35,12 @@ struct tikle_sockudp *tikle_comm = NULL;
 faultload_op faultload[30];
 unsigned int tikle_num_timers = 0, tikle_trigger_flag = 0;
 
+#ifdef TIKLE_DEBUG
 static const char *op_names[] = { 
 	"COMMAND", "AFTER", "WHILE", "HOST", "IF", "ELSE",
 	"END_IF", "END", "SET", "FOREACH", "PARTITION", "DECLARE"
 };
+#endif
 
 /**
  * Check if the ip is in the list
@@ -75,7 +77,7 @@ unsigned int tikle_pre_hook_function(unsigned int hooknum,
 	unsigned long array_local = 0, array_remote = 1;
 	int i = 0, array, position, log_found_flag = -1;
 
-	printk(KERN_INFO "tikle alert: hook function called\n");
+	TDEBUG("hook function called\n");
 	
 	if (num_ips && tikle_ip_check(ipip_hdr(sb)->saddr, partition_ips) == 0) {
 		return NF_DROP;
