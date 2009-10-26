@@ -28,20 +28,12 @@
 #include <net/netfilter/nf_queue.h> /* struct nf_queue_handler */
 #include <linux/netfilter.h> /* kernel protocol stack */
 #include <linux/netdevice.h> /* SOCK_DGRAM, KERNEL_DS an others */
-#include <linux/proc_fs.h> /* procfs manipulation */
 #include <net/net_namespace.h> /* proc_net stuff */
 #include <linux/sched.h> /* current-euid() */
 #include <asm/uaccess.h> /* kernel-mode to user-mode and reverse */
 #include <linux/kthread.h> /* kernel threads */
 #include <linux/timer.h> /* temporization trigger stuff */
-#include <linux/file.h> /* write to file */
 #include <linux/random.h> /* tausworthe generators */
-/*
- * path to netiflter constants
- * needed since kernel 2.6.27
- */
-#undef __KERNEL__
-#include <linux/netfilter_ipv4.h>
 #include "tikle_hooks.h" /* tikle hooks */
 #include "tikle_defs.h" /* tikle macros */
 
@@ -105,7 +97,7 @@ static ssize_t tikle_read(struct file *file, char *buffer, size_t length, loff_t
 	 * 1 -> endless loop 
 	 */
 	if (tikle_eof) {
-		printk(KERN_INFO "tikle alert: end of file\n");
+		TINFO("end of file\n");
 		tikle_eof = 0;
 		return 0;
 	}
@@ -122,7 +114,7 @@ static ssize_t tikle_read(struct file *file, char *buffer, size_t length, loff_t
 		return -EFAULT;
 	}
 
-	printk(KERN_INFO "tikle alert: read %lu bytes\n", tikle_buffer_size);
+	TINFO("read %lu bytes\n", tikle_buffer_size);
 
 	return tikle_buffer_size;
 }
@@ -153,16 +145,16 @@ static ssize_t tikle_write(struct file *file, const char *buffer, size_t len, lo
 	strncpy(command, buffer, len-1);
 	command[len-1] = 0;
 
-	printk(KERN_INFO "tikle alert: write %lu bytes\n", tikle_buffer_size);
+	TINFO("write %lu bytes\n", tikle_buffer_size);
 
 	/*
 	 * interpretation of commands from user-space
 	 * by echo "command" > /proc/net/tikle/shell
 	 */
 	if (strcmp(command, "halt") == 0) {
-		printk(KERN_INFO "tikle alert: halting tests\n");
+		TALERT("halting tests\n");
 	} else {
-		printk(KERN_INFO "tikle alert: Unknown command\n");
+		TALERT("unknown command\n");
 	}
 
 	return tikle_buffer_size;
@@ -185,7 +177,7 @@ static int tikle_permission(struct inode *inode, int op
 # define current_euid() current->euid
 #endif
 
-	printk(KERN_INFO "tikle alert:\n\toperation: %d\n\tpermission: %d\n", op, current_euid());
+	TINFO("\toperation: %d\n\tpermission: %d\n", op, current_euid());
 
 	/* 
 	 * everybody can READ (4, 36),
@@ -235,7 +227,7 @@ static struct inode_operations tikle_iops = {
 };
 
 /**
- *  Reinject a packet in the protocol stack after the delay
+ * Reinject a packet in the protocol stack after the delay
  */
 /*static void delay_unlock(struct nf_queue_entry *foo)
 {
@@ -284,7 +276,7 @@ static void tikle_faultload_free(void)
 	 * Checking if the faultlets were loaded
 	 */
 	if (faultload[0].opcode) {
-		printk(KERN_INFO "tikle alert: Freeing faultload structure\n");
+		TINFO("freeing faultload structure\n");
 		do {
 			if (faultload[i].op_type) {
 				for (k = 0; k < faultload[i].num_ops; k++) {
@@ -294,7 +286,7 @@ static void tikle_faultload_free(void)
 				}
 				kfree(faultload[i].op_type);
 				SECURE_FREE(faultload[i].op_value);
-				}		
+			}
 		} while (faultload[i++].block_type == 0);
 	}
 }
@@ -328,7 +320,7 @@ static int tikle_sockudp_start(void)
 	if (((tikle_err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &tikle_comm->sock_recv)) < 0) 
 		|| ((tikle_err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &tikle_comm->sock_send)) < 0)
 		|| ((tikle_err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &tikle_comm->sock_command_send)) < 0)) {
-		printk(KERN_ERR "tikle alert: error %d while creating sockudp\n", -ENXIO);
+		TERROR("error %d while creating sockudp\n", -ENXIO);
 		tikle_comm->thread_socket = NULL;
 		tikle_comm->flag = 0;
 	}
@@ -345,12 +337,12 @@ static int tikle_sockudp_start(void)
 	if ((tikle_err = tikle_comm->sock_recv->ops->bind(tikle_comm->sock_recv,
 			(struct sockaddr *)&tikle_comm->addr_recv, sizeof(struct sockaddr))) < 0)
 		{
-		printk(KERN_ERR "tikle alert: error %d while binding to socket\n", -tikle_err);
+		TERROR("error %d while binding to socket\n", -tikle_err);
 		sock_release(tikle_comm->sock_recv);
 		tikle_comm->sock_recv = NULL; 
 	}
 
-	printk(KERN_INFO "tikle alert: listening on port %d\n", PORT_LISTEN);
+	TINFO("listening on port %d\n", PORT_LISTEN);
 
 	/*
 	 * socket to send user commands through the network
@@ -359,7 +351,7 @@ static int tikle_sockudp_start(void)
 	 */
 	/*if (tikle_comm->sock_command_send->ops->setsockopt(tikle_comm->sock_command_send, SOL_SOCKET,
 				SO_BROADCAST, (void *)&broadcast, sizeof(broadcast)) < 0) {
-		printk(KERN_INFO "error while setting broadcast permission to socket\n");
+		TERROR("error while setting broadcast permission to socket\n");
 		return 0;
 	}
 
@@ -379,7 +371,7 @@ static int tikle_sockudp_start(void)
 		&num_ips, sizeof(int));
 	
 	if (size < 0) {
-		printk(KERN_ERR "tikle alert: error %d while getting datagram\n", size);
+		TERROR("error %d while getting datagram\n", size);
 	} else {
 		TDEBUG("num_ips=%d\n", num_ips);
 		TDEBUG("received %d bytes\n", size);
@@ -389,7 +381,7 @@ static int tikle_sockudp_start(void)
 			&partition_ips, sizeof(unsigned long) * num_ips);
 	
 		if (size < 0) {
-			printk(KERN_ERR "tikle alert: error %d while getting datagram\n", size);
+			TERROR("error %d while getting datagram\n", size);
 		} else {
 			int j;
 			
@@ -522,12 +514,12 @@ static int tikle_sockudp_start(void)
 		}
 		
 		if (signal_pending(current)) {
-			printk(KERN_INFO "tikle alert: nothing\n");
+			TINFO("signal_peding returned true\n");
 			goto next;
 		}
 		
 		if (size < 0) {
-			printk(KERN_ERR "tikle alert: error %d while getting datagram\n", size);
+			TERROR("error %d while getting datagram\n", size);
 		} else {				
 			TDEBUG("received %d bytes\n", size);
 		}
@@ -556,12 +548,12 @@ next:
 	if ((tikle_err = tikle_comm->sock_send->ops->connect(tikle_comm->sock_send,
 			(struct sockaddr *)&tikle_comm->addr_send, sizeof(struct sockaddr), 0)) < 0)
 	{
-		printk(KERN_ERR "tikle alert: error %d while connecting to socket\n", -tikle_err);
+		TERROR("error %d while connecting to socket\n", -tikle_err);
 		sock_release(tikle_comm->sock_send);
 		tikle_comm->sock_send = NULL;
 	}
 
-	printk(KERN_INFO "tikle alert: sending confirmation of received data\n");
+	TALERT("sending confirmation of received data\n");
 
 	tikle_sockudp_send(tikle_comm->sock_send, &tikle_comm->addr_send,
 		"tikle-received", sizeof("tikle-received"));
@@ -570,19 +562,19 @@ next:
 	 * waiting for controller
 	 * authorization to start
 	 */
-	printk(KERN_ERR "tikle alert: waiting for authorization to start\n");
+	TALERT("waiting for authorization to start\n");
 
 	size = tikle_sockudp_recv(tikle_comm->sock_recv, &tikle_comm->addr_recv, tikle_auth, sizeof("tikle-start"));
 
-	printk(KERN_ERR "tikle alert: received \"%s\" from controller\n", tikle_auth);
+	TALERT("received \"%s\" from controller\n", tikle_auth);
 
 	if (size < 0) {
-		printk(KERN_ERR "tikle alert: error %d while getting authorization\n", size);
+		TALERT("error %d while getting authorization\n", size);
 		tikle_faultload_free();
 		
 		return 0;
 	} else if (strncmp(tikle_auth, "tikle-start", sizeof("tikle-start")) == 0) { 
-		printk(KERN_ERR "tikle alert: received permission to start execution\n");
+		TALERT("received permission to start execution\n");
 	
 		/*
 		 * load faultload in memory
@@ -620,7 +612,7 @@ next:
 		 */
 		tikle_trigger_handling();
 	} else {
-		printk(KERN_ERR "tikle alert: you don't have permission to start execution. received: '%s'\n", tikle_auth);
+		TALERT("you don't have permission to start execution. received: '%s'\n", tikle_auth);
 	}
 	return 0;
 }
@@ -628,8 +620,11 @@ next:
 /**
  * Tausworthe generator
  */
-static void tikle_random(struct tikle_seeds *tikle_seed) 
+static inline void tikle_random(struct tikle_seeds *tikle_seed)
 {
+#define TAUSWORTHE(s,a,b,c,d) ((s&c)<<d) ^ (((s <<a) ^ s)>>b)
+#define LCG(n) (69069 * n)
+
 	tikle_seed->s1 = LCG(jiffies);
 	tikle_seed->s2 = LCG(tikle_seed->s1);
 	tikle_seed->s3 = LCG(tikle_seed->s2);
@@ -659,7 +654,7 @@ static void tikle_random(struct tikle_seeds *tikle_seed)
 	unlock_kernel();
 
 	if ((tikle_err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &tikle_comm->sock_command_recv)) < 0) {
-		printk(KERN_ERR "tikle alert: error %d while creating sockudp\n", -ENXIO);
+		TERROR("error %d while creating sockudp\n", -ENXIO);
 		tikle_comm->thread_command = NULL;
 		tikle_comm->flag = 0;
 	}
@@ -672,14 +667,14 @@ static void tikle_random(struct tikle_seeds *tikle_seed)
 	if ((tikle_err = tikle_comm->sock_command_recv->ops->bind(tikle_comm->sock_command_recv,
 			(struct sockaddr *)&tikle_comm->addr_command_recv, sizeof(struct sockaddr))) < 0)
 		{
-		printk(KERN_ERR "tikle alert: error %d while binding to socket\n", -tikle_err);
+		TERROR("error %d while binding to socket\n", -tikle_err);
 		sock_release(tikle_comm->sock_command_recv);
 		tikle_comm->sock_command_recv = NULL; 
 	}
 
 	size = tikle_sockudp_recv(tikle_comm->sock_command_recv, &tikle_comm->addr_command_recv, tikle_halt, sizeof("tikle-halt"));
 
-	printk(KERN_INFO "tikle alert: received %s\n", tikle_halt);
+	TINFO("received %s\n", tikle_halt);
 
 	return tikle_err;
 
@@ -704,7 +699,7 @@ static int __init tikle_init(void)
 	
 	if (!tikle_main_proc_dir) {
 		remove_proc_entry("tikle", proc_net);
-		printk(KERN_ERR "tikle alert: error while creating main directory\n");
+		TERROR("error while creating main directory\n");
 		tikle_err = -ENOMEM;
 		goto tikle_exit;
 	}
@@ -716,7 +711,7 @@ static int __init tikle_init(void)
 
 	if (!tikle_shell_proc_entry) {
 		tikle_err = -ENOMEM;
-		printk(KERN_ERR "tikle alert: error while creating shell file\n");
+		TERROR("error while creating shell file\n");
 		goto tikle_no_shell;
 	}
 
@@ -739,8 +734,8 @@ static int __init tikle_init(void)
 	 */
 	tikle_random(&tikle_seed);
 
-	printk(KERN_INFO "tikle alert: module loaded\n");
-	TDEBUG("tikle alert: seeds are 0x%x 0x%x 0x%x\n", tikle_seed.s1, tikle_seed.s2, tikle_seed.s3);
+	TINFO("module loaded\n");
+	TDEBUG("seeds are 0x%x 0x%x 0x%x\n", tikle_seed.s1, tikle_seed.s2, tikle_seed.s3);
 
 	/*
 	 * preparing thread to
@@ -753,7 +748,7 @@ static int __init tikle_init(void)
 	//tikle_comm->thread_command = kthread_run((void *)tikle_command_listener, NULL, "command");
 
 	if ((IS_ERR(tikle_comm->thread_socket))) { //|| (IS_ERR(tikle_comm->thread_command))) {
-		printk(KERN_ERR "tikle alert: error while running kernel thread\n");
+		TERROR("error while running kernel thread\n");
 		kfree(tikle_comm);
 		tikle_comm = NULL;
 		tikle_err = -ENOMEM;
@@ -807,7 +802,7 @@ static void __exit tikle_exit(void)
 	 */
 	SECURE_FREE(tikle_log_counters);
 
-	printk(KERN_INFO "tikle alert: module unloaded\n");
+	TINFO("module unloaded\n");
 }
 
 module_init(tikle_init);

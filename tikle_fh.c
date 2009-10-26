@@ -33,8 +33,13 @@
 #include "tikle_hooks.h"
 #include "tikle_defs.h"
 
+/**
+ * Extern variables
+ */
 struct nf_hook_ops tikle_pre_hook, tikle_post_hook;
 int num_ips, log_size;
+
+void tikle_flag_handling(unsigned long id);
 
 /**
  * after ending experiment, host must
@@ -45,7 +50,7 @@ static void tikle_send_log(void)
 	int tikle_err;
 
 	if ((tikle_err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &tikle_comm->sock_log)) < 0) {
-		printk(KERN_ERR "tikle alert: error %d while creating sockudp\n", -ENXIO);
+		TERROR("error %d while creating sockudp\n", -ENXIO);
 	}
 
 	memset(&tikle_comm->addr_log, 0, sizeof(struct sockaddr));
@@ -54,7 +59,7 @@ static void tikle_send_log(void)
 	tikle_comm->addr_log.sin_port = htons(PORT_LOGGING);
 
 	if ((tikle_err = tikle_comm->sock_send->ops->connect(tikle_comm->sock_send,(struct sockaddr *)&tikle_comm->addr_send, sizeof(struct sockaddr), 0)) < 0) {
-		printk(KERN_ERR "tikle alert: error %d while connecting to socket\n", -tikle_err);
+		TERROR("error %d while connecting to socket\n", -tikle_err);
 		sock_release(tikle_comm->sock_send);
 		tikle_comm->sock_log = NULL; 
 	}
@@ -191,7 +196,7 @@ void tikle_flag_handling(unsigned long id)
 	 */
 	if (id > 0 && tikle_timers[tikle_trigger_flag].trigger_state == 1) {
 		tikle_timers[tikle_trigger_flag].trigger_state = 2;
-		printk(KERN_INFO "tikle alert: killing timer %d\n", tikle_trigger_flag);
+		TALERT("killing timer %d\n", tikle_trigger_flag);
 
 		/*
 		 * Go to next timer
@@ -199,7 +204,7 @@ void tikle_flag_handling(unsigned long id)
 		tikle_trigger_flag++;	
 	}
 	
-	printk(KERN_INFO "tikle alert: activating timer %d\n", tikle_trigger_flag);
+	TALERT("activating timer %d\n", tikle_trigger_flag);
 
 	/* 
 	 * Set state to active
@@ -215,7 +220,7 @@ void tikle_flag_handling(unsigned long id)
 
 		//nf_unregister_queue_handler(PF_INET, &qh);
 
-		printk(KERN_INFO "tikle alert: killing timer %d\n\texecution ended\n", tikle_trigger_flag);
+		TINFO("killing timer %d\n\texecution ended\n", tikle_trigger_flag);
 
 		tikle_send_log();
 	}*/
