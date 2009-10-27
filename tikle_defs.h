@@ -27,8 +27,10 @@
 #undef TDEBUG
 #ifdef TIKLE_DEBUG
 # define TDEBUG(fmt, ...) printk(KERN_DEBUG "tikle debug: " fmt, ##__VA_ARGS__)
+# define TDPRINT(fmt, ...) printk(fmt, ##__VA_ARGS__)
 #else
 # define TDEBUG(fmt, ...) /* nothing */
+# define TDPRINT(fmt, ...) /* nothing */
 #endif
 
 #define TERROR(fmt, ...) printk(KERN_ERR "tikle error: " fmt, ##__VA_ARGS__)
