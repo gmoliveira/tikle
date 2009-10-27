@@ -387,9 +387,9 @@ static int tikle_sockudp_start(void)
 			
 			TDEBUG("declare={");
 			for (j = 0; j < num_ips; j++) {
-				TDEBUG("%lu%s", partition_ips[j], (j == (num_ips-1) ? "" : ","));
+				TDPRINT("%lu%s", partition_ips[j], (j == (num_ips-1) ? "" : ","));
 			}
-			TDEBUG("}\n");
+			TDPRINT("}\n");
 			
 			TDEBUG("received %d bytes\n", size);
 		}
@@ -471,10 +471,10 @@ static int tikle_sockudp_start(void)
 									
 									TDEBUG("%d array {", k+1);
 									for (j = 0; j < faultload[i].op_value[k].array.count; j++) {
-										TDEBUG("%ld%s", faultload[i].op_value[k].array.nums[j],
+										TDPRINT("%ld%s", faultload[i].op_value[k].array.nums[j],
 											(j == (faultload[i].op_value[k].array.count-1) ? "" : ","));
 									}
-									TDEBUG("}\n");
+									TDPRINT("}\n");
 								}
 								break;
 							default:
