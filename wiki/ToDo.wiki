@@ -1,6 +1,8 @@
 #summary Tasks
 #labels ToDo
 
-  * (brainstorming) develop a virtual synchronism without affecting the workload; (nst)
-  * (in development) support other communication faults such as drop, delay, duplication and corruption of a message; (nst)
-  * (dead) provide UML descriptions; (nst)
+support packet injection to possibly security mechanisms assessment
+
+support for mobile environments
+
+support other communication faults such as drop, delay, duplication and corruption of a message;
