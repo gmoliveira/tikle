@@ -1,0 +1,8 @@
+@declare {143.54.10.111};
+
+START:
+  after (5s) do
+    partition {143.54.10.111};
+  end
+STOP:
+  after (10s);
