@@ -24,35 +24,102 @@
 #ifndef TIKLE_DEFS_H
 #define TIKLE_DEFS_H
 
-#undef TDEBUG
-#ifdef TIKLE_DEBUG
-# define TDEBUG(fmt, ...) printk(KERN_DEBUG "tikle debug: " fmt, ##__VA_ARGS__)
-# define TDPRINT(fmt, ...) printk(fmt, ##__VA_ARGS__)
-#else
-# define TDEBUG(fmt, ...) /* nothing */
-# define TDPRINT(fmt, ...) /* nothing */
-#endif
-
-#define TERROR(fmt, ...) printk(KERN_ERR "tikle error: " fmt, ##__VA_ARGS__)
-#define TALERT(fmt, ...) printk(KERN_NOTICE "tikle alert: " fmt, ##__VA_ARGS__)
-#define TINFO(fmt, ...) printk(KERN_INFO "tikle info: " fmt, ##__VA_ARGS__)
-
-#include <linux/ip.h> /* ipip_hdr(const struct sk_buff *sb) */
-#include <linux/in.h> /* sockaddr_in and other macros */
-#include "tikle_types.h" /* tikle type definitions */
-
-/**
- * it depends of faultload size
- */
-#define TIKLE_PROCFSBUF_SIZE 128
-
-/**
- * Ports
- */
 #define PORT_LISTEN 12608
 #define PORT_CONNECT 21508
 #define PORT_LOGGING 12128 
-#define PORT_COMMAND 24187 
+
+/**
+ * Actions
+ */
+typedef enum {
+	ACT_DELAY = 0,
+	ACT_DUPLICATE,
+	ACT_DROP
+} faultload_action;
+
+/**
+ * Protocols
+ */
+typedef enum  {
+	ALL_PROTOCOL = 0,
+	TCP_PROTOCOL = 6,
+	UDP_PROTOCOL = 17,
+	SCTP_PROTOCOL = 132
+} faultload_protocol;
+
+/**
+ * Numeric representation type
+ * 1  -> NONE
+ * 1s -> TEMPORAL
+ * 1p -> NPACKETS
+ * 1% -> PERCT
+ */
+typedef enum _faultload_num_type {
+	NONE = 0,
+	TEMPORAL,
+	NPACKETS,
+	PERCT
+} faultload_num_type;
+
+/**
+ * Opcode data type structure
+ */
+typedef union {
+	unsigned long num;
+	struct _str_value {
+		size_t length;
+		char *value;
+	} str;
+	struct _array_value {
+		size_t count;
+		unsigned long nums[10];
+	} array;
+} faultload_value_type;
+
+/**
+ * Opcode type
+ */
+typedef enum {
+	COMMAND,
+	AFTER,
+	WHILE,
+	HOST,
+	IF,
+	ELSE,
+	END_IF,
+	END,
+	SET,
+	FOREACH,
+	PARTITION,
+	DECLARE
+} faultload_opcode;
+
+/**
+ * Op data type
+ */
+typedef enum {
+	UNUSED = 0,
+	NUMBER,
+	STRING,
+	VAR,
+	ARRAY
+} faultload_op_type;
+
+/**
+ * Opcode structure
+ */
+typedef struct {
+	faultload_opcode opcode;
+	faultload_protocol protocol;
+	faultload_num_type occur_type;
+	unsigned short int num_ops;
+	faultload_op_type *op_type;
+	faultload_value_type *op_value;
+	int extended_value;
+	unsigned long label;
+	short int block_type;
+	unsigned int next_op;
+} faultload_op;
 
 /**
  * Number of itens in opcode structure
@@ -66,69 +133,5 @@
 	if (_var) {           \
 		kfree(_var);      \
 	}
-
-extern unsigned long *tikle_log_counters;
-extern int num_ips, log_size;
-
-/**
- * socket structure
- */
-struct tikle_sockudp {
-	int flag;
-	struct task_struct *thread_socket, *thread_command;
-	struct socket *sock_recv, *sock_send, *sock_log, *sock_command_recv, *sock_command_send;
-	struct sockaddr_in addr_recv, addr_send, addr_log, addr_command_recv, addr_command_send;
-};
-
-extern struct tikle_sockudp *tikle_comm;
-
-/**
- * Struct declaration for handling timers
- */
-struct tikle_timer {
-	struct timer_list trigger;
-	/*
-	 * The key on faultload[]
-	 */
-	unsigned int trigger_id;
-	/*
-	 * The trigger state. 0 for inative,
-	 * 1 for active, 2 for killed.
-	 */
-	unsigned int trigger_state;
-};
-
-extern struct tikle_timer *tikle_timers;
-
-/**
- * Register trigger timers
- */
-extern void tikle_trigger_handling(void);
-
-/**
- * Control flags
- */
-extern unsigned int tikle_num_timers, tikle_trigger_flag;
-
-/**
- * Faultload
- */
-extern faultload_op faultload[30];
-
-/**
- * Ips used in partition experiment
- */
-extern unsigned long partition_ips[30];
-
-/**
- * Struct to register hook operations
- */
-extern struct nf_hook_ops tikle_pre_hook, tikle_post_hook;
-
-/**
- * Socket wrappers
- */
-extern int tikle_sockudp_send(struct socket *sock, struct sockaddr_in *addr, void *buf, int len);
-extern int tikle_sockudp_recv(struct socket *sock, struct sockaddr_in *addr, void *buf, int len);
-
+	
 #endif /* TIKLE_DEFS_H */

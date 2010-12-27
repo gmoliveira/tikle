@@ -47,12 +47,6 @@ static const char *op_types[] = {
 	"UNUSED", "NUMBER", "STRING", "VAR", "ARRAY"
 };
 
-#define tikle_log_daddr(_i) _i*5
-#define tikle_log_saddr(_i) _i*5+1
-#define tikle_log_event(_i) _i*5+2
-#define tikle_log_in(_i)    _i*5+3
-#define tikle_log_out(_i)   _i*5+4
-
 #define FREE_IF_OP_STR(n)                                   \
 	if (faultload_p->op_type[(n)] == STRING) {              \
 		free((void *)faultload_p->op_value[(n)].str.value); \
@@ -104,88 +98,13 @@ static const char *op_types[] = {
 			break;                                                                     \
 	}
 
-/**
- * Receive the log from all ones involved in the experiment
- */
-static void tikle_recv_log(int num_ips, int event_count)
-{
-	struct sockaddr_in tikle_log_server_addr;
-	unsigned long **tikle_log_all;
-	unsigned int i, n, log_size;
-	socklen_t tikle_socklen;
-	int tikle_err, tikle_log_sock_server;
-
-	log_size = num_ips * event_count * 5;
-
-	/*
-	 * wait for the end of experiment when
-	 * hosts will send logs to controller
-	 */
-	memset(&tikle_log_server_addr, 0, sizeof(struct sockaddr_in));
-
-	tikle_log_sock_server = socket(AF_INET, SOCK_DGRAM, 0);
-	tikle_log_server_addr.sin_family = AF_INET;
-	tikle_log_server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	tikle_log_server_addr.sin_port = htons(12128);
-	bind(tikle_log_sock_server, (struct sockaddr *)&tikle_log_server_addr, sizeof(tikle_log_server_addr));
-	
-	tikle_log_all = (unsigned long **) calloc(num_ips, sizeof(unsigned long *));
-	
-	if (tikle_log_all == NULL) {
-		printf("Unable to alloc memory to tikle_log_all\n");
-		return;
-	}	
-	
-	tikle_socklen = sizeof(tikle_log_server_addr);
-
-	for (n = 0; n < num_ips; n++) {
-		tikle_log_all[n] = (unsigned long *) malloc(sizeof(unsigned long) * log_size);
-				
-		tikle_err = recvfrom(tikle_log_sock_server, tikle_log_all[n], sizeof(unsigned long) * log_size,
-			0, (struct sockaddr *)&tikle_log_server_addr, &tikle_socklen);
-			
-		printf("tikle alert: received log from %s\n", inet_ntoa(tikle_log_server_addr.sin_addr));
-		printf(" HOST (daddr)   | HOST (saddr)    | EVENT | IN  | OUT\n");
-
-		for (i = 0; i < event_count; i++) {
-			printf("%-15s | %-15s | %03lu   | %03lu | %03lu\n",
-				inet_ntoa(*(struct in_addr*)&tikle_log_all[n][tikle_log_daddr(i)]),
-				inet_ntoa(*(struct in_addr*)&tikle_log_all[n][tikle_log_saddr(i)]),
-				tikle_log_all[n][tikle_log_event(i)],
-				tikle_log_all[n][tikle_log_in(i)],
-				tikle_log_all[n][tikle_log_out(i)]);
-		}
-		
-		/* Freeing */
-		free(tikle_log_all[n]);
-	}
-	/*
-	for (n = 0; n < log_size; n++) {
-		for (i = 0; i < log_size; i++) {
-			if (n == i || tikle_log_all[n][4*n] != tikle_log_all[i][4*i] ||
-				tikle_log_all[n][4*n+2] != tikle_log_all[i][4*i+2]) {
-				continue;
-			}			
-			if (tikle_log_all[n][4*n+3] != tikle_log_all[i][4*i+3]) {
-				printf("%-15s <-> %-15s | %d | expected %d, got %d\n");
-			}
-			if (tikle_log_all[n][4*n+4] != tikle_log_all[i][4*i+4]) {
-				printf("%-15s <-> %-15s | %d | expected %d, got %d\n");
-			}			
-		}
-	}
-	*/
-	
-	free(tikle_log_all);
-}
-
 int main(int argc, char **argv)
 {
-	int fdin, partition_num_ips = 0, tikle_sock_client, tikle_sock_server;//, tikle_sock_halt;
-	int tikle_err, tikle_num_replies = 0, event_count = 0;
+	int fdin, partition_num_ips = 0, tikle_sock_client, tikle_sock_server;
+	int tikle_err, tikle_num_replies = 0;
 	int return_val, numreqs = 30, broadcast = 1, n, i = 0, j = 0;
 	faultload_op **faultload, **faultload_pp, *faultload_p, *partition_ips = NULL;
-	struct sockaddr_in tikle_client_addr, tikle_server_addr;//, tikle_halt_addr;
+	struct sockaddr_in tikle_client_addr, tikle_server_addr;
 	char *source, tikle_reply[sizeof("tikle-received")];
 	socklen_t tikle_socklen;
 	struct stat statbuf;
@@ -234,7 +153,7 @@ int main(int argc, char **argv)
 
 	tikle_sock_client = socket(AF_INET, SOCK_DGRAM, 0);
 	if (setsockopt(tikle_sock_client, SOL_SOCKET, SO_BROADCAST, (void *)&broadcast, sizeof(broadcast)) < 0) {
-		printf("error while setting broadcast permission to socket");
+		printf("erro ao definir permissao para broadcast\n");
 		close(fdin);
 		return 0;
 	}
@@ -251,35 +170,17 @@ int main(int argc, char **argv)
 
 	tikle_sock_server = socket(AF_INET, SOCK_DGRAM, 0);
 	tikle_server_addr.sin_family = AF_INET;
+	tikle_server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	tikle_server_addr.sin_port = htons(21508);
 	bind(tikle_sock_server, (struct sockaddr *)&tikle_server_addr, sizeof(tikle_server_addr));
 
-	/*
-	 * create a socket to allow user to send commands during the testes
-	 */
-/*
-	memset(&tikle_halt_addr, 0, sizeof(struct sockaddr_in));
-
-	tikle_sock_halt = socket(AF_INET, SOCK_DGRAM, 0);
-	if (setsockopt(tikle_sock_halt, SOL_SOCKET, SO_BROADCAST, (void *)&broadcast, sizeof(broadcast)) < 0) {
-		printf("error while setting broadcast permission to socket");
-		close(fdin);
-		return 0;
-	}
-
-	tikle_halt_addr.sin_family = AF_INET;
-	tikle_halt_addr.sin_port = htons(24187);
-
-	//sendto(tikle_sock_halt, "tikle-halt", sizeof("tikle-halt"), 0,
-	//	(struct sockaddr *) &tikle_halt_addr, sizeof(tikle_halt_addr));
-*/
 	/* Check for partition mode */
 	if (faultload && *faultload && (*faultload)->opcode == DECLARE) {
 		partition_ips = *faultload;
 		partition_num_ips = (*faultload)->op_value[0].array.count;
 		faultload++;
 	}
-
+		
 	/* Sending opcode information */	
 	while (faultload && *faultload) {
 		faultload_p = *faultload;
@@ -293,11 +194,6 @@ int main(int argc, char **argv)
 				(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));
 		} else {
 			int i = 0;
-			
-			/* Counting the AFTER in the START part */
-			if (faultload_p->opcode == AFTER && faultload_p->block_type == 0) {
-				event_count++;
-			}
 						
 			do {
 				if (partition_ips) {
@@ -305,7 +201,8 @@ int main(int argc, char **argv)
 					 * Send the information for each ips declared 
 					 * on @declare { } block, when used.
 					 */
-					tikle_client_addr.sin_addr.s_addr = (in_addr_t) partition_ips->op_value[0].array.nums[i];	
+					tikle_client_addr.sin_addr.s_addr = (in_addr_t) partition_ips->op_value[0].array.nums[i];
+				
 					if (partition_ips == *(faultload-1)) {
 						/* 
 						 * Send the number of ips envolved in the experiment
@@ -313,16 +210,6 @@ int main(int argc, char **argv)
 						 */
 						sendto(tikle_sock_client, &partition_num_ips, sizeof(int), 0,
 							(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));
-							
-						/* 
-						 * Send the stations IP address to avoid the requirement of a
-						 * configured environment (closed LAN) to execute testes
-						 */
-						if (partition_num_ips) {
-							sendto(tikle_sock_client, &partition_ips->op_value[0].array.nums,
-								partition_num_ips * sizeof(unsigned long), 0,
-								(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));
-						}
 					}
 				}
 
@@ -423,8 +310,8 @@ int main(int argc, char **argv)
   			if (ifr->ifr_broadaddr.sa_family == AF_INET) {
   				struct sockaddr_in *sin = (struct sockaddr_in *) &ifr->ifr_broadaddr;
 				
-				if ((strcmp(ifr->ifr_name, "eth0") == 0) || (strcmp(ifr->ifr_name, "eth1") == 0)) {
-					tikle_server_addr.sin_addr.s_addr = htonl(inet_addr(inet_ntoa(sin->sin_addr)));
+				if (strcmp(ifr->ifr_name, "eth0") == 0) {
+					tikle_client_addr.sin_addr.s_addr = inet_addr(inet_ntoa(sin->sin_addr));
 					break;
 				}
   			} else {
@@ -445,8 +332,7 @@ int main(int argc, char **argv)
 	
 	tikle_socklen = sizeof(tikle_server_addr);
 
-	for (; tikle_num_replies < partition_num_ips;) {
-		printf("tikle alert: confirmations remaing %d\n", partition_num_ips - tikle_num_replies);
+	for (; tikle_num_replies < partition_num_ips;) {		
 		tikle_err = recvfrom(tikle_sock_server, tikle_reply, sizeof("tikle-received"), 0,
 			(struct sockaddr *)&tikle_server_addr, &tikle_socklen);
 		
@@ -466,11 +352,6 @@ int main(int argc, char **argv)
 	sendto(tikle_sock_client, "tikle-start", sizeof("tikle-start"), 0,
 		(struct sockaddr *)&tikle_client_addr, sizeof(tikle_client_addr));
 		
-	/*
-	 * Receiving log
-	 */
-	tikle_recv_log(partition_num_ips, event_count);
-
 	if (partition_ips) {
 		free(partition_ips->op_type);
 		free(partition_ips->op_value);
