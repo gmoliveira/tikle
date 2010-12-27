@@ -1,16 +1,18 @@
 #summary Tasks
 #labels ToDo
 
-  * (in development) create a graphical user interface to improve usability
+current work:
 
-  * enable netfilter promiscuous mode
+  * refactoring the old functional code;
 
-  * support packet injection to possibly security mechanisms assessment
+  * adding more options:
+      - user interaction (through procfs);
+      - netfilter promiscuous modes (for the two types of log counters);
+      - campaign results connected with gnuplot for better visualization.
 
-  * support for mobile environments (android - unofficial)
-
-  * support other communication faults such as drop, delay, duplication and corruption of a message;
-
-  * create a log analysis by graphics through gnuplot's calls
-
-  * improve the description fault language to a turing complete language
+frozen work:
+  * improve the description fault language to a turing complete language; (hard)
+  * create a graphical user interface to improve usability; (medium)
+  * support packet injection to possibly security mechanisms assessment; (easy)
+  * support other communication faults such as drop and delay of a message; (medium)
+  * support for mobile environments (android - unofficial). (medium-hard)
