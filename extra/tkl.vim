@@ -1,6 +1,6 @@
 " Vim syntax file
 " Language: Tikle script
-" Maintainer: Higor Eurípedes
+" Maintainer: Higor EurÃ­pedes
 " Latest Revision: 13 July 2009
 
 if version < 600
@@ -10,7 +10,6 @@ elseif exists("b:current_syntax")
 endif
 
 syn case ignore
-
 
 syn keyword tklTodo contained TODO FIXME XXX NOTE
 syn match tklComment "#.*$" contains=tklTodo

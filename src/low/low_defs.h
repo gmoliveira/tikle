@@ -1,9 +1,10 @@
 /* 
  * Tikle kernel module
- * Copyright (C) 2009  Felipe 'ecl' Pena
- *                     Gustavo 'nst' Oliveira
+ * Copyright (C) 2009	Felipe 'ecl' Pena
+ *			Gustavo 'nst' Oliveira
  * 
- * Contact us at: #c2zlabs@freenode.net - www.c2zlabs.com
+ * Contact us at: flipensp@gmail.com
+ * 		  gmoliveira@inf.ufrgs.br
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +22,18 @@
  * Also thanks to Higor 'enygmata' Euripedes
  */
 
-#ifndef TIKLE_TYPES_H
-#define TIKLE_TYPES_H
+#ifndef LOW_DEFS_H
+#define LOW_DEFS_H
+
+#include <linux/sched.h> /* struct task_struct */
+#include <linux/kthread.h>
+/**
+ * Macro to make errors easy to identify
+ */
+#define TERROR(fmt, ...) printk(KERN_ERR "tikle error: " fmt, ##__VA_ARGS_)
+#define TINFO(fmt, ...) printk(KERN_INFO "tikle info: " fmt, ##__VA_ARGS_)
+#define TDPRINT(fmt, ...) printk(KERN_INFO "tikle info: " fmt, ##__VA_ARGS_)
+#define TDEBUG(fmt, ...) printk(KERN_DEBUG "tikle debug: " fmt, ##__VA_ARGS_)
 
 /**
  * Actions
@@ -117,4 +128,33 @@ typedef struct {
 	unsigned int next_op;
 } faultload_op;
 
-#endif /* TIKLE_TYPES_H */
+/**
+ * main thread definition
+ */
+extern struct task_struct *main_thread;
+
+/**
+ * configuration phase function
+ */
+int f_config(void);
+
+/**
+ * procfs entries for user interaction
+ */
+typedef struct procfs_entries {
+	struct proc_dir_entry *proc_dir,	/* /proc/net/tikle */
+			      *proc_shell,	/* /proc/net/tikle/shell */
+			      *proc_status;	/* /proc/net/tikle/status */
+} procfs_t;
+
+extern procfs_t *sysfs;
+
+/**
+ * main communication structure
+ */
+typedef struct cfg_socket {
+	struct socket *sock;
+	struct sockaddr_in addr;
+} cfg_lsock_t;
+
+#endif

@@ -1,10 +1,11 @@
 %include {
-/* 
+/** 
  * Tikle kernel module
- * Copyright (C) 2009  Felipe 'ecl' Pena
- *                     Gustavo 'nst' Oliveira
+ * Copyright (C) 2009	Felipe 'ecl' Pena
+ *			Gustavo 'nst' Oliveira
  * 
- * Contact us at: #c2zlabs@freenode.net - www.c2zlabs.com
+ * Contact us at: flipensp@gmail.com
+ * 		  gmoliveira@inf.ufrgs.br
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

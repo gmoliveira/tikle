@@ -1,9 +1,10 @@
-/* 
+/** 
  * Tikle kernel module
- * Copyright (C) 2009  Felipe 'ecl' Pena
- *                     Gustavo 'nst' Oliveira
+ * Copyright (C) 2009	Felipe 'ecl' Pena
+ *			Gustavo 'nst' Oliveira
  * 
- * Contact us at: #c2zlabs@freenode.net - www.c2zlabs.com
+ * Contact us at: flipensp@gmail.com
+ * 		  gmoliveira@inf.ufrgs.br
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +25,7 @@
 #ifndef LEMON_PARSER_H
 #define LEMON_PARSER_H
 
-#include "../../tikle_types.h"
+#include "../global_types.h"
 
 #define IN_DEBUG 0
 
