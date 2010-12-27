@@ -6,7 +6,9 @@ current work:
   * refactoring the old functional code;
 
   * adding more options:
+
       - user interaction (through procfs);
+
       - netfilter promiscuous modes (for the two types of log counters);
 
       - campaign results connected with gnuplot for better visualization.
