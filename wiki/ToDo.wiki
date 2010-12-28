@@ -13,6 +13,8 @@ current work:
 
       - campaign results connected with gnuplot for better visualization.
 
+  * Create a simple update system
+
 frozen work:
   * improve the description fault language to a turing complete language; (hard)
   * create a graphical user interface to improve usability; (medium)
