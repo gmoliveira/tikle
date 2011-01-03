@@ -22,27 +22,29 @@
  * Also thanks to Higor 'enygmata' Euripedes
  */
 
-#ifndef LOW_DEFS_H
-#define LOW_DEFS_H
+#ifndef LOW_FUNCS_H
+#define LOW_FUNCS_H
 
-#include "low_types.h"
-
-//#include <linux/sched.h> /* struct task_struct */
-//#include <linux/kthread.h>
 /**
- * Macro to make errors easy to identify
+ * configuration phase function
  */
-#define TERROR(fmt, ...) printk(KERN_ERR "tikle error: " fmt, ##__VA_ARGS_)
-#define TINFO(fmt, ...) printk(KERN_INFO "tikle info: " fmt, ##__VA_ARGS_)
-#define TDPRINT(fmt, ...) printk(KERN_INFO "tikle info: " fmt, ##__VA_ARGS_)
-#define TDEBUG(fmt, ...) printk(KERN_DEBUG "tikle debug: " fmt, ##__VA_ARGS_)
-
-#define NUM_FAULTLOAD_OP 10
-/**
- * main thread definition
- */
-extern struct task_struct *main_thread;
-
-extern procfs_t *sysfs;
+int f_config(void);
 
 #endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

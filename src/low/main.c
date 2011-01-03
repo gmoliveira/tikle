@@ -35,6 +35,19 @@
 #include <linux/pid.h> /* struct pid header */
 
 #include "low_defs.h" /* tikle global definitions */
+#include "low_funcs.h" /* tikle functions prototypes */
+
+/**
+ * external definition
+ * for /proc tree
+ */
+procfs_t *sysfs;
+
+/**
+ * external definition
+ * for main thread control
+ */
+struct task_struct *main_thread;
 
 /**
  * callback function for /proc/net/tikle/status
@@ -148,7 +161,7 @@ static int __init f_init(void)
 	 * the three phases of execution from tikle
 	 * configuration -> operation -> data collecting
 	 */
-	main_thread = kthread_run((void *)f_config, NULL, "main thread");
+	main_thread = kthread_run((void *)f_config, NULL, "main-thread");
 
 	if (IS_ERR(main_thread)) {
 		printk(KERN_ERR "error while running kernel thread\n");
@@ -185,7 +198,7 @@ static void __exit f_exit(void)
 	/**
 	 * something went wrong, force kill of thread
 	 */
-	if (error == -EINTR) {
+/*	if (error == -EINTR) {
 		struct pid *temp = get_task_pid(main_thread, PIDTYPE_PID);
 		lock_kernel();
 		error = kill_pid(temp, SIGKILL, 1);
@@ -197,7 +210,7 @@ static void __exit f_exit(void)
 			while (!main_thread->state)
 				msleep(10);
 	}
-
+*/
 	/**
 	 * unregister procfs main dir and its entries
 	 */
@@ -215,5 +228,6 @@ module_init(f_init);
 module_exit(f_exit);
 
 MODULE_AUTHOR("c2zlabs");
+//MODULE_VERSION("0.1a");
 MODULE_DESCRIPTION("fault injection environment for network protocol evaluation");
 MODULE_LICENSE("GPLv3");
