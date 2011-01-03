@@ -1,5 +1,5 @@
-obj-m = main.o 
-tikle-objs := config.o#tikle_core.o tikle_hooks.o tikle_fh.o tikle_comm.o
+obj-m = tikle.o 
+tikle-objs := main.o config.o#tikle_core.o tikle_hooks.o tikle_fh.o tikle_comm.o
 KVERSION := $(shell uname -r)
 KDIR := /lib/modules/$(KVERSION)/build
 DEBUG = y
