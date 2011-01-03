@@ -16,8 +16,9 @@ current work:
   * Create a simple update system
 
 frozen work:
-  * improve the description fault language to a turing complete language; (hard)
+  * create a tikle logo :-)
   * create a graphical user interface to improve usability; (medium)
+  * improve the description fault language to a turing complete language; (hard)
   * support packet injection to possibly security mechanisms assessment; (easy)
   * support other communication faults such as drop and delay of a message; (medium)
   * support for mobile environments (android - unofficial). (medium-hard)
