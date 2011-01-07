@@ -45,4 +45,6 @@ extern struct task_struct *main_thread;
 
 extern procfs_t *sysfs;
 
+extern faultload_op faultload[30];
+
 #endif
