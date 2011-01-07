@@ -29,6 +29,7 @@
 #include <linux/err.h>
 
 #include <linux/netdevice.h> /* SOCK_DGRAM, KERNEL_DS and others */
+#include <linux/smp_lock.h> /* (un)lock_kernel(); */
 #include "low_defs.h" /* tikle global definitions */
 
 //#include <linux/ip.h> /* ipip_hdr(const struct sk_buff *sb) */
@@ -124,7 +125,7 @@ int f_send_msg(struct socket *sock,
  */
 int f_get_faultload(cfg_lsock_t *listen)
 {
-	int num_ips, size, i = 0, trigger_count = 0;
+	int num_ips, size, i = 0;//, trigger_count = 0;
 	static int count = 0;
 
 	printk(KERN_INFO "- start------------------------------------\n");
@@ -364,8 +365,8 @@ int f_config(void)
 //	int flag;
 //	int err;
 //	usr_args_t *data;
-	cfg_lsock_t *listen;
-	cfg_lsock_t *send;
+//	cfg_lsock_t *listen = kmalloc(sizeof(cfg_lsock_t), GFP_KERNEL);
+//	cfg_lsock_t *send = kmalloc(sizeof(cfg_lsock_t), GFP_KERNEL);
 
 	/*
 	 * define flags of the thread and run socket
@@ -380,20 +381,20 @@ int f_config(void)
 	/**
 	 * sock listener creation
 	 */
-	listen = f_create_sock_server(12608);
-	if (listen == NULL) {
-		kfree(listen);
-		goto error;
-	}
+//	listen = f_create_sock_server(12608);
+//	if (listen == NULL) {
+//		kfree(listen);
+//		goto error;
+//	}
 
 	/**
 	 * sock sender creation
 	 */
-	send = f_create_sock_client(21508);
-	if (send == NULL) {
-		kfree(send);
-		goto error;
-	}
+//	send = f_create_sock_client(21508);
+//	if (send == NULL) {
+//		kfree(send);
+//		goto error;
+//	}
 
 	/**
 	 * all gone well, let`s receive the user faultload
@@ -409,6 +410,6 @@ int f_config(void)
 
 	return 0;
 
-error:
-	return 1;
+//error:
+//	return 1;
 }

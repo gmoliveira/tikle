@@ -16,3 +16,4 @@ module:
 
 clean:
 	make -C $(KDIR) M=$(PWD) clean
+	rm -f Mod* mod* *~
