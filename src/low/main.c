@@ -166,7 +166,7 @@ static int __init f_init(void)
 	 * the three phases of execution from tikle
 	 * configuration -> operation -> data collecting
 	 */
-//	main_thread = kthread_run((void *)f_config, NULL, "main-thread");
+	main_thread = kthread_run((void *)f_config, NULL, "main-thread");
 
 //	if (IS_ERR(main_thread)) {
 //		printk(KERN_ERR "error while running kernel thread\n");
@@ -193,7 +193,7 @@ exit:
  */
 static void __exit f_exit(void)
 {
-	int error = 0;
+//	int error = 0;
 
 	/**
 	 * stop main kernel thread
