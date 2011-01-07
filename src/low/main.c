@@ -97,6 +97,11 @@ static int __init f_init(void)
 	int error = 0;
 
 	/**
+	 * alloc data
+	 */
+	sysfs = kmalloc(sizeof(procfs_t), GFP_KERNEL);
+
+	/**
 	 * create main directory
 	 */
 	sysfs->proc_dir = proc_mkdir("tikle", init_net.proc_net);
@@ -161,13 +166,13 @@ static int __init f_init(void)
 	 * the three phases of execution from tikle
 	 * configuration -> operation -> data collecting
 	 */
-	main_thread = kthread_run((void *)f_config, NULL, "main-thread");
+//	main_thread = kthread_run((void *)f_config, NULL, "main-thread");
 
-	if (IS_ERR(main_thread)) {
-		printk(KERN_ERR "error while running kernel thread\n");
-		error = -ENOMEM;
-		goto exit;
-	}
+//	if (IS_ERR(main_thread)) {
+//		printk(KERN_ERR "error while running kernel thread\n");
+//		error = -ENOMEM;
+//		goto exit;
+///	}
 
 	return 0;
 
@@ -193,7 +198,7 @@ static void __exit f_exit(void)
 	/**
 	 * stop main kernel thread
 	 */
-	error = kthread_stop(main_thread);
+//	error = kthread_stop(main_thread);
 
 	/**
 	 * something went wrong, force kill of thread
@@ -217,6 +222,7 @@ static void __exit f_exit(void)
 	remove_proc_entry("shell", sysfs->proc_dir);
 	remove_proc_entry("status", sysfs->proc_dir);
 	remove_proc_entry("tikle", init_net.proc_net);
+	kfree(sysfs);
 
 	/**
 	 * ok, it's time to get back at home
