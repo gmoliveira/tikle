@@ -37,6 +37,7 @@
 
 unsigned long partition_ips[30];
 faultload_op faultload[30];
+
 /**
  * Receive data from socket.
  * @param sock the socket
@@ -333,9 +334,8 @@ cfg_lsock_t *f_create_sock_server(int port)
 	int err;
 	cfg_lsock_t *temp = kmalloc(sizeof(cfg_lsock_t), GFP_KERNEL);
 
-	temp = NULL;
-
 	err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &temp->sock);
+
 	if (err < 0)
 		return temp;
 
@@ -363,11 +363,10 @@ cfg_lsock_t *f_create_sock_server(int port)
 int f_config(void)
 {
 //	int flag;
-//	int err;
+	int err;
 //	usr_args_t *data;
-//	cfg_lsock_t *listen = kmalloc(sizeof(cfg_lsock_t), GFP_KERNEL);
-//	cfg_lsock_t *send = kmalloc(sizeof(cfg_lsock_t), GFP_KERNEL);
-
+	cfg_lsock_t *listen;
+	cfg_lsock_t *send;
 	/*
 	 * define flags of the thread and run socket
 	 * server as a daemon (run in background)
@@ -381,11 +380,11 @@ int f_config(void)
 	/**
 	 * sock listener creation
 	 */
-//	listen = f_create_sock_server(12608);
-//	if (listen == NULL) {
-//		kfree(listen);
-//		goto error;
-//	}
+	listen = f_create_sock_server(12608);
+	if (listen == NULL) {
+		kfree(listen);
+		goto error;
+	}
 
 	/**
 	 * sock sender creation
@@ -410,6 +409,6 @@ int f_config(void)
 
 	return 0;
 
-//error:
-//	return 1;
+error:
+	return 1;
 }

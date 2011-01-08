@@ -31,20 +31,3 @@
 int f_config(void);
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
