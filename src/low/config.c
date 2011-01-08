@@ -313,8 +313,6 @@ cfg_lsock_t *f_create_sock_client(int port)
 
 	cfg_lsock_t *temp = kmalloc(sizeof(cfg_lsock_t), GFP_KERNEL);
 
-	temp = NULL;
-
 	err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &temp->sock);
 	if (err < 0)
 		return temp;
@@ -389,11 +387,11 @@ int f_config(void)
 	/**
 	 * sock sender creation
 	 */
-//	send = f_create_sock_client(21508);
-//	if (send == NULL) {
-//		kfree(send);
-//		goto error;
-//	}
+	send = f_create_sock_client(21508);
+	if (send == NULL) {
+		kfree(send);
+		goto error;
+	}
 
 	/**
 	 * all gone well, let`s receive the user faultload
