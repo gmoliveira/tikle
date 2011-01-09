@@ -26,17 +26,13 @@
 #include <linux/module.h> /* well this is a module, right? */
 #include <linux/kernel.h> /* KERN_INFO stuff */
 
-#include <linux/err.h>
+#include <linux/err.h> /* error control through errno */
 
 #include <linux/netdevice.h> /* SOCK_DGRAM, KERNEL_DS and others */
 #include <linux/smp_lock.h> /* (un)lock_kernel(); */
-#include "low_defs.h" /* tikle global definitions */
-
-//#include <linux/ip.h> /* ipip_hdr(const struct sk_buff *sb) */
 #include <linux/in.h> /* sockaddr_in and other macros */
 
-unsigned long partition_ips[30];
-faultload_op faultload[30];
+#include "low_defs.h" /* tikle global definitions */
 
 /**
  * Receive data from socket.
@@ -124,184 +120,44 @@ int f_send_msg(struct socket *sock,
 /**
  * function to get the user faultload
  */
-int f_get_faultload(cfg_lsock_t *listen)
+faultload_op *f_get_faultload(cfg_lsock_t *listen)
 {
-	int num_ips, size, i = 0;//, trigger_count = 0;
-	static int count = 0;
+	int num_ips, size;
+	unsigned long partition_ips[30];
+	faultload_op *temp = kmalloc(sizeof(faultload_op), GFP_KERNEL);
 
 	printk(KERN_INFO "- start------------------------------------\n");
 
-	memset(faultload, 0, sizeof(faultload));
-	
+	memset(temp, 0, sizeof(temp));
+
 	size = f_recv_msg(listen->sock, &listen->addr, &num_ips, sizeof(int));
-	
+
 	if (size < 0) {
 		printk(KERN_ERR "error %d while getting datagram\n", size);
 	} else {
 		printk(KERN_INFO "num_ips=%d\n", num_ips);
 		printk(KERN_INFO "received %d bytes\n", size);
 	}
+
 	if (num_ips) {
-		size = f_recv_msg(listen->sock, &listen->addr,
-			&partition_ips, sizeof(unsigned long) * num_ips);
-	
-		if (size < 0) {
-			printk("error %d while getting datagram\n", size);
-		} else {
-			int j;
-			
-			printk("declare={");
-			for (j = 0; j < num_ips; j++) {
-				printk("%lu%s", partition_ips[j], (j == (num_ips-1) ? "" : ","));
-			}
-			printk("}\n");
-			
-			printk("received %d bytes\n", size);
-		}
-	}
+                size = f_recv_msg(listen->sock, &listen->addr,
+                                &partition_ips, sizeof(unsigned long) * num_ips);
 
-	while (1) {
-		switch (count) {
-			case 0: /* Opcode */
-				size = f_recv_msg(listen->sock, &listen->addr,
-					&faultload[i].opcode, sizeof(faultload_opcode));
-//				if (faultload[i].opcode == AFTER) {
-//					trigger_count++;
-//				}
-				printk("opcode: %d\n", faultload[i].opcode);
-				break;
-			case 1: /* Protocol */
-				size = f_recv_msg(listen->sock, &listen->addr,
-					&faultload[i].protocol, sizeof(faultload_protocol));
-				printk("protocol: %d\n", faultload[i].protocol);
-				break;
-			case 2: /* Occur type (TEMPORAL, PACKETS, PERCT) */
-				size = f_recv_msg(listen->sock, &listen->addr,
-					&faultload[i].occur_type, sizeof(faultload_num_type));
-				printk("occur_type: %d\n", faultload[i].occur_type);
-				break;
-			case 3: /* Number of ops */
-				size = f_recv_msg(listen->sock, &listen->addr,
-					&faultload[i].num_ops, sizeof(unsigned short int));
-				printk("num_ops: %d\n", faultload[i].num_ops);
-				break;
-			case 4: /* Operand types */
-				{
-					unsigned short int k;
-					
-					if (faultload[i].num_ops == 0) {
-						faultload[i].op_type = NULL;
-						faultload[i].op_value = NULL;
-						
-						count += 2; /* Jump to case 6 */
-						continue;
-					}
-					
-					faultload[i].op_type = kcalloc(faultload[i].num_ops, sizeof(faultload_op_type), GFP_KERNEL | GFP_ATOMIC);
+                if (size < 0) {
+                        printk(KERN_INFO "error %d while getting datagram\n", size);
+                        return NULL;
+                } else {
+                        int j;
 
-					size = f_recv_msg(listen->sock, &listen->addr,
-						faultload[i].op_type, sizeof(faultload_op_type) * faultload[i].num_ops);
+                        printk(KERN_INFO "declare={");
+                        for (j = 0; j < num_ips; j++)
+                                printk(KERN_INFO "%lu%s", partition_ips[j], (j == (num_ips-1) ? "" : ","));
+                        printk("}\n");
+                }
+        }
+	printk(KERN_INFO "- end------------------------------------\n");
 
-					for (k = 0; k < faultload[i].num_ops; k++) {
-						printk("op_type%d [%d]\n", k+1, faultload[i].op_type[k]);
-					}
-				}
-				break;
-			case 5: /* Operand values */
-				{
-					unsigned short int k;
-						
-					faultload[i].op_value = kcalloc(faultload[i].num_ops, sizeof(faultload_value_type), GFP_KERNEL | GFP_ATOMIC);
-					size = 0;
-					for (k = 0; k < faultload[i].num_ops; k++) {
-						switch (faultload[i].op_type[k]) {
-							case STRING:
-								f_recv_msg(listen->sock, &listen->addr,
-									&faultload[i].op_value[k].str.length, sizeof(size_t));
-								faultload[i].op_value[k].str.value = (char*) kmalloc(faultload[i].op_value[k].str.length, GFP_KERNEL | GFP_ATOMIC);
-								size += f_recv_msg(listen->sock, &listen->addr,
-								faultload[i].op_value[k].str.value, faultload[i].op_value[k].str.length);
-								
-								printk("%d string [%s] (len: %d)\n", k+1, faultload[i].op_value[k].str.value,
-									faultload[i].op_value[k].str.length);
-								break;
-							case ARRAY:
-								{
-									unsigned int j;
-									
-									f_recv_msg(listen->sock, &listen->addr,
-										&faultload[i].op_value[k].array.count, sizeof(size_t));
-									size += f_recv_msg(listen->sock, &listen->addr,
-										&faultload[i].op_value[k].array.nums, sizeof(unsigned long) * faultload[i].op_value[k].array.count);
-									
-									printk("%d array {", k+1);
-									for (j = 0; j < faultload[i].op_value[k].array.count; j++) {
-										printk("%ld%s", faultload[i].op_value[k].array.nums[j],
-											(j == (faultload[i].op_value[k].array.count-1) ? "" : ","));
-									}
-									printk("}\n");
-								}
-								break;
-							default:
-								size += f_recv_msg(listen->sock, &listen->addr,
-									&faultload[i].op_value[k].num, sizeof(unsigned long));
-									
-								printk("%d number: %ld\n", k+1, faultload[i].op_value[k].num);
-								break;
-						}
-					}
-				}
-				break;
-			case 6: /* Extended value */
-				size = f_recv_msg(listen->sock, &listen->addr,
-							&faultload[i].extended_value, sizeof(int));
-				printk("Extended value: %d\n", faultload[i].extended_value);
-				break;
-			case 7: /* Label */
-				size = f_recv_msg(listen->sock, &listen->addr,
-							&faultload[i].label, sizeof(unsigned long));
-				printk("Label: %ld\n", faultload[i].label);
-				break;
-			case 8: /* Block type (START, STOP) */
-				size = f_recv_msg(listen->sock,
-							&listen->addr, &faultload[i].block_type,
-							sizeof(short int));
-				printk("Block type: %d\n", faultload[i].block_type);
-				break;
-			case 9: /* Control op number */
-				size = f_recv_msg(listen->sock, &listen->addr,
-							&faultload[i].next_op, sizeof(unsigned int));
-				printk("Op number: %d\n", faultload[i].next_op);
-				break;
-			default:
-				printk("unexpected type\n");
-				break;
-		}
-		
-		if (signal_pending(current)) {
-			printk("signal_peding returned true\n");
-			goto next;
-		}
-		
-		if (size < 0) {
-			printk("error %d while getting datagram\n", size);
-		} else {				
-			printk("received %d bytes\n", size);
-		}
-next:
-		if ((count+1) == NUM_FAULTLOAD_OP) {
-			if (faultload[i].block_type == 1) {
-				/* STOP! The last instruction was reached. */
-				break;
-			}
-			count = -1;
-			i++;
-		}
-		count++;
-	}
-	printk("- end------------------------------------\n");
-
-	return 0;
+	return temp;
 }
 
 /**
@@ -360,11 +216,11 @@ cfg_lsock_t *f_create_sock_server(int port)
  */
 int f_config(void)
 {
-//	int flag;
-	int err;
-//	usr_args_t *data;
 	cfg_lsock_t *listen;
 	cfg_lsock_t *send;
+
+	faultload_op *faultload;
+
 	/*
 	 * define flags of the thread and run socket
 	 * server as a daemon (run in background)
@@ -396,7 +252,7 @@ int f_config(void)
 	/**
 	 * all gone well, let`s receive the user faultload
 	 */
-//	faultload = f_get_faultload(listen);
+	faultload = f_get_faultload(listen);
 
 	/**
 	 * we need just two more info data
