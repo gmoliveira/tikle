@@ -133,7 +133,7 @@ typedef struct procfs_entries {
 typedef struct cfg_socket {
 	struct socket *sock;
 	struct sockaddr_in addr;
-} cfg_lsock_t;
+} cfg_sock_t;
 
 /**
  * structure to keep user options
@@ -145,5 +145,10 @@ typedef struct user_arguments {
 	int feedback;
 	int check; 
 } usr_args_t;
+
+typedef struct faultload_extra {
+	int num_ips;
+	faultload_op partition_ips[30];
+} faultload_extra_t;
 
 #endif

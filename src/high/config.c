@@ -22,7 +22,7 @@
  * Also thanks to Higor 'enygmata' Euripedes
  */
 
-#include <stdio.h>
+#include <stdio.h> /* basic i/o hunny */
 #include <stdlib.h> /* malloc() */
 #include <string.h> /* strerror() */
 #include <unistd.h> /* close() */
@@ -71,7 +71,7 @@ cfg_sock_t *f_create_sock_client(int port)
 	if (err < 0)
 		goto error;
 
-	temp->addr.sin_addr.s_addr = inet_addr("255.255.255.255");
+	temp->addr.sin_addr.s_addr = inet_addr("192.168.100.255");
 	temp->addr.sin_family = AF_INET;
 	temp->addr.sin_port = htons(port);
 	
@@ -114,108 +114,115 @@ error:
 }
 
 /**
+ * obtain some extra data through user faultload,
+ * like number of total hosts in the experiment
+ * as its internet addresses
+ */
+faultload_extra_t *f_read_faultload_extra(faultload_op **usr_faultld)
+{
+	faultload_extra_t *extra = malloc(sizeof(faultload_extra_t));
+	faultload_op **temp = usr_faultld;
+
+	if (temp && *temp && (*temp)->opcode == DECLARE) {
+		extra->partition_ips = *temp;
+		extra->num_ips = (*temp)->op_value[0].array.count;
+		temp++;
+	}
+
+	return extra;
+}
+
+/**
+ * send some extra data, like number of hosts in
+ * experiment as its internet addresses
+ */
+int f_send_faultload_extra(cfg_sock_t *sock, faultload_op **usr_faultld)
+{
+	int i = 0;
+	cfg_sock_t *call = sock;
+	faultload_op **temp = usr_faultld, *temp_p;
+	faultload_extra_t *extra;
+
+	extra = f_read_faultload_extra(temp++);
+
+	while (temp && *temp) {
+		temp_p = *temp;
+		do {
+			if (extra->partition_ips) {
+				call->addr.sin_addr.s_addr = (in_addr_t) extra->partition_ips->op_value[0].array.nums[i];
+				if (extra->partition_ips == *(temp-1)) {
+					sendto(call->sock, &extra->num_ips, sizeof(int), 0, (struct sockaddr *) &call->addr, sizeof(call->addr));
+					if (extra->num_ips) {
+						sendto(call->sock, &extra->partition_ips->op_value[0].array.nums, extra->num_ips * sizeof(unsigned long), 0, (struct sockaddr *) &call->addr, sizeof(call->addr));
+					}
+				}
+			}
+		} while (++i < extra->num_ips);
+		free(temp_p);
+		temp++;
+	}
+
+	return 0;
+}
+
+
+/**
  * send the user faultload to each host listed in it
  */
 int f_send_faultload(cfg_sock_t *sock, faultload_op **usr_faultld)
 {
-	int num_ips = 0;
-	int i, j;
+	int j = 0;
+	cfg_sock_t *call = sock;
+	faultload_extra_t *extra;
+	faultload_op **temp = usr_faultld, *temp_p;
 
-	cfg_sock_t *call;
-	faultload_op **temp, *temp_p, *partition_ips = NULL;
-
-	temp = usr_faultld;
-	call = sock;
-
-	/**
-	 * are we going through a partitioning injection campaign?
-	 */
-	if (temp && *temp && (*temp)->opcode == DECLARE) {
-		partition_ips = *temp;
-		num_ips = (*temp)->op_value[0].array.count;
-		temp++;
-	}
+	extra = f_read_faultload_extra(temp++);
 
 	while (temp && *temp) {
-		i = 0;
-
+		int i = 0;
 		temp_p = *temp;
-
 		do {
-			if (partition_ips) {
-				call->addr.sin_addr.s_addr = (in_addr_t) partition_ips->op_value[0].array.nums[i];
-				if (partition_ips == *(temp-1)) {
-					sendto(call->sock,
-						&num_ips,
-						sizeof(int),
-						0,
-						(struct sockaddr *)&call->addr,
-						sizeof(call->addr));
+			call->addr.sin_addr.s_addr = (in_addr_t) extra->partition_ips->op_value[0].array.nums[i];
+			sendto(call->sock, &temp_p->opcode, sizeof(faultload_opcode), 0, (struct sockaddr *) &call->addr, sizeof(call->addr));
+			sendto(call->sock, &temp_p->protocol, sizeof(faultload_protocol), 0, (struct sockaddr *) &call->addr, sizeof(call->addr));
+			sendto(call->sock, &temp_p->occur_type, sizeof(faultload_num_type), 0, (struct sockaddr *) &call->addr, sizeof(call->addr));
+			sendto(call->sock, &temp_p->num_ops, sizeof(unsigned short int), 0, (struct sockaddr *) &call->addr, sizeof(call->addr));
 
-					if (num_ips)
-						sendto(call->sock,
-							&partition_ips->op_value[0].array.nums,
-							(num_ips * sizeof(unsigned long)),
-							0, (struct sockaddr *)&call->addr,
-							sizeof(call->addr));
+			if (temp_p->num_ops > 0) {
+				sendto(call->sock, &temp_p->op_type, sizeof(faultload_op_type) * temp_p->num_ops, 0, (struct sockaddr *) &call->addr, sizeof(call->addr));
+				for (j = 0; j < temp_p->num_ops; j++) {
+					SENDTO_OP_VALUE(j);
 				}
 			}
 
-			sendto(call->sock, &temp_p->opcode, sizeof(faultload_opcode), 0, 
-					(struct sockaddr *)&call->addr, sizeof(call->addr));
-			sendto(call->sock, &temp_p->protocol, sizeof(faultload_protocol), 0,
-					(struct sockaddr *)&call->addr, sizeof(call->addr));
-			sendto(call->sock, &temp_p->occur_type, sizeof(faultload_num_type), 0,
-					(struct sockaddr *)&call->addr, sizeof(call->addr));
-			sendto(call->sock, &temp_p->num_ops, sizeof(unsigned short int), 0,
-					(struct sockaddr *)&call->addr, sizeof(call->addr));
+			sendto(call->sock, &temp_p->extended_value, sizeof(int), 0, (struct sockaddr *) &call->addr, sizeof(call->addr));
+			sendto(call->sock, &temp_p->label, sizeof(unsigned long), 0, (struct sockaddr *) &call->addr, sizeof(call->addr));
+			sendto(call->sock, &temp_p->block_type, sizeof(short int), 0, (struct sockaddr *) &call->addr, sizeof(call->addr));
+			sendto(call->sock, &temp_p->next_op, sizeof(unsigned int), 0, (struct sockaddr *) &call->addr, sizeof(call->addr));
+		} while (++i < extra->num_ips);
 
-			if (temp_p->num_ops > 0) {
-				sendto(call->sock,
-					temp_p->op_type,
-					(sizeof(faultload_op_type) * temp_p->num_ops),
-					0,
-					(struct sockaddr *)&call->addr,
-					sizeof(call->addr));
-					
-					for (j = 0; j < temp_p->num_ops; j++)
-						SENDTO_OP_VALUE(j);
-			}
+		/* Debug information */
+		printf("%03d: %-5s>> nr: %03d | opcode[%d]: %s | proto: %d | ",
+			i++,
+			(temp_p->block_type == 0 ? "START" : "STOP"),
+			temp_p->next_op,
+			temp_p->opcode,
+			op_names[temp_p->opcode],
+			temp_p->protocol);
 
-			sendto(call->sock, &temp_p->extended_value, sizeof(int), 0,
-				(struct sockaddr *)&call->addr, sizeof(call->addr));
-			sendto(call->sock, &temp_p->label, sizeof(unsigned long), 0,
-				(struct sockaddr *)&call->addr, sizeof(call->addr));
-			sendto(call->sock, &temp_p->block_type, sizeof(short int), 0,
-				(struct sockaddr *)&call->addr, sizeof(call->addr));
-			sendto(call->sock, &temp_p->next_op, sizeof(unsigned int), 0,
-				(struct sockaddr *)&call->addr, sizeof(call->addr));
+		for (j = 0; j < temp_p->num_ops; j++) {
+			SHOW_OP_INFO(j);
+			FREE_IF_OP_STR(j);
+		}
+		printf("ext: %d | occur: %d\n", temp_p->extended_value, temp_p->occur_type);
 
-		} while (++i < num_ips);
+		if (temp_p->num_ops) {
+			free(temp_p->op_value);
+			free(temp_p->op_type);
+		}
+		free(temp_p);
+		temp++;
 	}
-
-//	/* Debug information */
-//	printf("%03d: %-5s>> nr: %03d | opcode[%d]: %s | proto: %d | ",
-//		i++,
-//		(temp_p->block_type == 0 ? "START" : "STOP"),
-//		temp_p->next_op,
-//		temp_p->opcode,
-//		op_names[temp_p->opcode],
-//		temp_p->protocol);
-
-//	for (j = 0; j < temp_p->num_ops; j++) {
-//		SHOW_OP_INFO(j);
-//		FREE_IF_OP_STR(j);
-//	}
-
-//	printf("ext: %d | occur: %d\n", temp_p->extended_value, temp_p->occur_type);
-
-//	if (temp_p->num_ops) {
-//		free(temp_p->op_value);
-//		free(temp_p->op_type);
-//	}
-//	free(temp_p);
-//	temp++;
 
 	return 0;
 }
@@ -225,15 +232,16 @@ int f_send_faultload(cfg_sock_t *sock, faultload_op **usr_faultld)
  * a socket to send the faultloads, and other to receive the
  * confirmation.
  */
-int f_config(faultload_op *faultload, usr_args_t *data)
+int f_config(faultload_op **faultload, usr_args_t *data)
 {
 	int err;
+
 	cfg_sock_t *bcast_sock;
 	cfg_sock_t *ready_sock;
-	usr_args_t *usr_defs;
-	faultload_op **usr_faultload = NULL;
 
-	usr_defs = data;
+//	usr_args_t *usr_defs = data;
+
+	faultload_op **usr_faultload = faultload;
 
 	/**
 	 * create a broadcast socket. it sends the faultload
@@ -249,17 +257,21 @@ int f_config(faultload_op *faultload, usr_args_t *data)
 	ready_sock = f_create_sock_server(21508);
 
 	/**
+	 * send the number of total hosts in experiment
+	 * as its internet addresses to each host
+	 */
+	err = f_send_faultload_extra(bcast_sock, usr_faultload);
+
+	/**
 	 * send the faultload script to each declared host
 	 */
-	f_send_faultload(bcast_sock, usr_faultload);
-
-//	f_send_faultload_extra(bcast_sock, usr_faultload);
+	err = f_send_faultload(bcast_sock, usr_faultload);
 
 //	f_send_usr_args(usr_defs);
 
 //	f_wait_confirm();
 
-	err = strncmp(data->counter, "remote", 6);
+//	err = strncmp(data->counter, "remote", 6);
 //	if (err == 0)
 //		f_oper_remote();
 

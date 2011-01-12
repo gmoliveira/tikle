@@ -38,6 +38,7 @@
 #define TDEBUG(fmt, ...) printk(KERN_DEBUG "tikle debug: " fmt, ##__VA_ARGS_)
 
 #define NUM_FAULTLOAD_OP 10
+
 /**
  * main thread definition
  */
@@ -45,6 +46,6 @@ extern struct task_struct *main_thread;
 
 extern procfs_t *sysfs;
 
-extern faultload_op faultload[30];
+//extern faultload_op faultload[30];
 
 #endif

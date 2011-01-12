@@ -135,10 +135,11 @@ help:
 	fprintf(stdout, "Command Line Options:\n");
 	fprintf(stdout, " %s [%s]\n", argv[0], ARGS);
 	fprintf(stdout, "...\n");
-	fprintf(stdout, " -c [local|remote] defines de counter method (default: local).\n");
+	fprintf(stdout, " -c checks for syntax errors in a faultload.\n");
 	fprintf(stdout, " -d [ethX] define the system network device, for remote counter only (default: auto).\n");
 	fprintf(stdout, " -f provides feedback (graphics and status) during execution.\n");
 	fprintf(stdout, " -h print this help menu.\n");
+	fprintf(stdout, " -m [local|remote] defines de counter method (default: local).\n");
 	fprintf(stdout, " -v print the software version.\n");
 	fprintf(stdout, "done.\n");
 	goto exit;
