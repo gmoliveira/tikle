@@ -118,56 +118,125 @@ int f_send_msg(struct socket *sock,
 }
 
 /**
+ * function to get the user faultload extra infos
+ */
+int f_get_faultload_extra(cfg_sock_t *listen)
+{
+	int size;
+	faultload_extra_t *extra = kmalloc(sizeof(faultload_extra_t), GFP_KERNEL);
+	size = f_recv_msg(listen->sock, &listen->addr, &extra->num_ips, sizeof(int));
+	printk(KERN_INFO "Size: %d -- Data: %d\n", size, extra->num_ips);
+
+	size = f_recv_msg(listen->sock, &listen->addr, &extra->partition_ips, sizeof(unsigned long) * extra->num_ips);
+
+	return 0;
+}
+
+/**
  * function to get the user faultload
  */
-faultload_op *f_get_faultload(cfg_lsock_t *listen)
+int f_get_faultload(cfg_sock_t *listen)
 {
-	int num_ips, size;
-	unsigned long partition_ips[30];
-	faultload_op *temp = kmalloc(sizeof(faultload_op), GFP_KERNEL);
+	static int count = 0;
+	int size, i = 0, eof = 1;
+	cfg_sock_t *call = listen;
+	faultload_op faultload[30];
+	while (1) {
+		switch (count) {
+			case 0: /* Opcode */
+				size = f_recv_msg(call->sock, &call->addr, &faultload[i].opcode, sizeof(faultload_opcode));
+				break;
+			case 1: /* Protocol */
+				size = f_recv_msg(call->sock, &call->addr, &faultload[i].protocol, sizeof(faultload_protocol));
+				break;
+			case 2: /* Occur type (TEMPORAL, PACKETS, PERCT) */
+				size = f_recv_msg(call->sock, &call->addr, &faultload[i].occur_type, sizeof(faultload_num_type));
+				break;
+			case 3: /* Number of ops */
+				size = f_recv_msg(call->sock, &call->addr, &faultload[i].num_ops, sizeof(unsigned short int));
+				break;
+			case 4: /* Operand types */
+				{
+					if (faultload[i].num_ops == 0) {
+						faultload[i].op_type = NULL;
+						faultload[i].op_value = NULL;
+						count += 2;
+						continue;
+					}
+					faultload[i].op_type = kcalloc(faultload[i].num_ops, sizeof(faultload_op_type), GFP_KERNEL | GFP_ATOMIC);
+					size = f_recv_msg(call->sock, &call->addr, &faultload[i].op_type, sizeof(faultload_op_type) * faultload[i].num_ops);
+				}
+				break;
+			case 5: /* Operand valyues */
+				{
+					unsigned short int k;
+					faultload[i].op_value = kcalloc(faultload[i].num_ops, sizeof(faultload_value_type), GFP_KERNEL | GFP_ATOMIC);
+					size = 0;
+					for (k = 0; k < faultload[i].num_ops; k++) {
+						switch (faultload[i].op_type[k]) {
+							case STRING:
+								f_recv_msg(call->sock, &call->addr, &faultload[i].op_value[k].str.length, sizeof(size_t));
+								faultload[i].op_value[k].str.value = (char *) kmalloc(faultload[i].op_value[k].str.length, GFP_KERNEL | GFP_ATOMIC);
+								size += f_recv_msg(call->sock, &call->addr, &faultload[i].op_value[k].str.value, faultload[i].op_value[k].str.length);
+								break;
+							case ARRAY:
+								{
+								f_recv_msg(call->sock, &call->addr, &faultload[i].op_value[k].array.count, sizeof(size_t));
+								size += f_recv_msg(call->sock, &call->addr, &faultload[i].op_value[k].array.nums, sizeof(unsigned long) * faultload[i].op_value[k].array.count);
+								}
+								break;
+							default:
+								size += f_recv_msg(call->sock, &call->addr, &faultload[i].op_value[k].num, sizeof(unsigned long));
+								break;
+						}
+					}
+				}
+				break;
+			case 6: /* Extended value */
+				size = f_recv_msg(call->sock, &call->addr, &faultload[i].extended_value, sizeof(int));
+				break;
+			case 7: /* Label */
+				size = f_recv_msg(call->sock, &call->addr, &faultload[i].label, sizeof(unsigned long));
+				break;
+			case 8: /* Block type (START, STOP) */
+				size = f_recv_msg(call->sock, &call->addr, &faultload[i].block_type, sizeof(short int));
+				break;
+			case 9: /* Control op number */
+				size = f_recv_msg(call->sock, &call->addr, &faultload[i].next_op, sizeof(unsigned int));
+				break;
+			default:
+				break;
 
-	printk(KERN_INFO "- start------------------------------------\n");
+		}
+		if (signal_pending(current)) {
+			goto next;
+		}
 
-	memset(temp, 0, sizeof(temp));
-
-	size = f_recv_msg(listen->sock, &listen->addr, &num_ips, sizeof(int));
-
-	if (size < 0) {
-		printk(KERN_ERR "error %d while getting datagram\n", size);
-	} else {
-		printk(KERN_INFO "num_ips=%d\n", num_ips);
-		printk(KERN_INFO "received %d bytes\n", size);
+		if (size < 0) {
+			eof = 1;
+			return size;
+		}
+next:
+		if ((count + 1) == NUM_FAULTLOAD_OP) {
+			if (faultload[i].block_type == 1) {
+				break;
+			}
+			count = -1;
+			i++;
+		}
+		count++;
 	}
-
-	if (num_ips) {
-                size = f_recv_msg(listen->sock, &listen->addr,
-                                &partition_ips, sizeof(unsigned long) * num_ips);
-
-                if (size < 0) {
-                        printk(KERN_INFO "error %d while getting datagram\n", size);
-                        return NULL;
-                } else {
-                        int j;
-
-                        printk(KERN_INFO "declare={");
-                        for (j = 0; j < num_ips; j++)
-                                printk(KERN_INFO "%lu%s", partition_ips[j], (j == (num_ips-1) ? "" : ","));
-                        printk("}\n");
-                }
-        }
-	printk(KERN_INFO "- end------------------------------------\n");
-
-	return temp;
+	return 0;
 }
 
 /**
  * create a client socket during the configuration phase
  */
-cfg_lsock_t *f_create_sock_client(int port)
+cfg_sock_t *f_create_sock_client(int port)
 {
 	int err;
 
-	cfg_lsock_t *temp = kmalloc(sizeof(cfg_lsock_t), GFP_KERNEL);
+	cfg_sock_t *temp = kmalloc(sizeof(cfg_sock_t), GFP_KERNEL);
 
 	err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &temp->sock);
 	if (err < 0)
@@ -183,10 +252,10 @@ cfg_lsock_t *f_create_sock_client(int port)
 /**
  * create a server socket during the configuration phase
  */
-cfg_lsock_t *f_create_sock_server(int port)
+cfg_sock_t *f_create_sock_server(int port)
 {
 	int err;
-	cfg_lsock_t *temp = kmalloc(sizeof(cfg_lsock_t), GFP_KERNEL);
+	cfg_sock_t *temp = kmalloc(sizeof(cfg_sock_t), GFP_KERNEL);
 
 	err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &temp->sock);
 
@@ -216,10 +285,10 @@ cfg_lsock_t *f_create_sock_server(int port)
  */
 int f_config(void)
 {
-	cfg_lsock_t *listen;
-	cfg_lsock_t *send;
+	int err;
 
-	faultload_op *faultload;
+	cfg_sock_t *listen;
+	cfg_sock_t *send;
 
 	/*
 	 * define flags of the thread and run socket
@@ -250,16 +319,20 @@ int f_config(void)
 	}
 
 	/**
-	 * all gone well, let`s receive the user faultload
-	 */
-	faultload = f_get_faultload(listen);
-
-	/**
-	 * we need just two more info data
+	 * we need just two main info data
 	 * the total of hosts, as its ips
 	 */
-//	hosts = f_get_faultload_extra(listen);
+	err = f_get_faultload_extra(listen);
 
+	/**
+	 * all gone well, let`s receive the user faultload
+	 */
+//	f_get_faultload(listen);
+
+	sock_release(listen->sock);
+	sock_release(send->sock);
+	kfree(listen);
+	kfree(send);
 
 	return 0;
 

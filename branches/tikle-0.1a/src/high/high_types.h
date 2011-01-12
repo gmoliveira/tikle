@@ -26,7 +26,7 @@
 #define HIGH_TYPES_H
 
 #include <netinet/in.h>
-
+#include "../global_types.h"
 /**
  * main communication structure
  */
@@ -45,5 +45,11 @@ typedef struct user_arguments {
 	int feedback;
 	int check; 
 } usr_args_t;
+
+typedef struct faultload_extra {
+	int num_ips;
+	faultload_op *partition_ips;
+} faultload_extra_t;
+
 
 #endif
