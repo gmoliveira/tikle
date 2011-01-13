@@ -5,7 +5,7 @@ RE2C_FLAGS =
 LEMON_FLAGS = -c -q
 LEMON = ./lemon
 
-dispatcher: parser.o scanner.o arg_handler.o pcap.o config.o main.o
+dispatcher: parser.o scanner.o arg_handler.o pcap.o config.o net.o main.o
 	$(CC) -Wall -o $@ $? -lpcap
 
 all: parser
@@ -17,6 +17,8 @@ scanner.c: scanner.re
 arg_handler.o: arg_handler.c
 	${CC} ${CFLAGS} $?
 config.o: config.c
+	${CC} ${CFLAGS} $?
+net.o: net.c
 	${CC} ${CFLAGS} $?
 pcap.o: pcap.c 
 	${CC} ${CFLAGS} $?

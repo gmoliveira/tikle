@@ -37,8 +37,9 @@
 #include "../global_types.h"
 #include "high_types.h"
 #include "high_macro.h"
+#include "high_func.h"
 #include "lemon_parser.h"
-
+/*
 static const char *op_names[] = {
 	"COMMAND", "AFTER", "WHILE", "HOST", "IF", "ELSE", 
 	"END_IF", "END", "SET", "FOREACH", "PARTITION", "DECLARE"
@@ -47,72 +48,7 @@ static const char *op_names[] = {
 static const char *op_types[] = {
 	"UNUSED", "NUMBER", "STRING", "VAR", "ARRAY"
 };
-
-/**
- * create a client socket during the configuration phase
- */
-cfg_sock_t *f_create_sock_client(int port)
-{
-	cfg_sock_t *temp = malloc(sizeof(cfg_sock_t));
-	int err, bcast = 1;
-
-	memset(&temp->addr, 0, sizeof(struct sockaddr_in));
-
-	temp->sock = socket(AF_INET, SOCK_DGRAM, 0);
-	if (temp->sock < 0)
-		goto error;
-
-	/* allow us to send broadcast messages */
-	err = setsockopt(temp->sock,
-			SOL_SOCKET,
-			SO_BROADCAST,
-			(void *)&bcast,
-			sizeof(bcast));
-	if (err < 0)
-		goto error;
-
-	temp->addr.sin_addr.s_addr = inet_addr("192.168.100.255");
-	temp->addr.sin_family = AF_INET;
-	temp->addr.sin_port = htons(port);
-	
-	return temp;
-
-error:
-	close(temp->sock);
-	free(temp);
-	fprintf(stdout, "%s", strerror(errno));
-	exit(EXIT_FAILURE);
-}
-
-/**
- * create a server socket during the configuration phase
- */
-cfg_sock_t *f_create_sock_server(int port)
-{
-	cfg_sock_t *temp = malloc(sizeof(cfg_sock_t));
-	int err;
-
-	memset(&temp->addr, 0, sizeof(struct sockaddr_in));
-
-	temp->sock = socket(AF_INET, SOCK_DGRAM, 0);
-	if (temp->sock < 0)
-		goto error;
-
-	temp->addr.sin_family = AF_INET;
-	temp->addr.sin_port = htons(port);
-
-	err = bind(temp->sock, (struct sockaddr *)&temp->addr, sizeof(struct sockaddr_in));
-	if (err < 0)
-		goto error;
-
-	return 0;
-error:
-	close(temp->sock);
-	free(temp);
-	perror("Exiting: ");
-	exit(EXIT_FAILURE);
-}
-
+*/
 /**
  * obtain some extra data through user faultload,
  * like number of total hosts in the experiment
@@ -202,7 +138,7 @@ int f_send_faultload(cfg_sock_t *sock, faultload_op **usr_faultld)
 		} while (++i < extra->num_ips);
 
 		/* Debug information */
-		printf("%03d: %-5s>> nr: %03d | opcode[%d]: %s | proto: %d | ",
+/*		printf("%03d: %-5s>> nr: %03d | opcode[%d]: %s | proto: %d | ",
 			i++,
 			(temp_p->block_type == 0 ? "START" : "STOP"),
 			temp_p->next_op,
@@ -215,7 +151,7 @@ int f_send_faultload(cfg_sock_t *sock, faultload_op **usr_faultld)
 			FREE_IF_OP_STR(j);
 		}
 		printf("ext: %d | occur: %d\n", temp_p->extended_value, temp_p->occur_type);
-
+*/
 		if (temp_p->num_ops) {
 			free(temp_p->op_value);
 			free(temp_p->op_type);
@@ -232,14 +168,13 @@ int f_send_faultload(cfg_sock_t *sock, faultload_op **usr_faultld)
  * a socket to send the faultloads, and other to receive the
  * confirmation.
  */
-int f_config(faultload_op **faultload, usr_args_t *data)
+int f_config(faultload_op **faultload, usr_args_t *usr)
 {
 	int err;
 
 	cfg_sock_t *bcast_sock;
 	cfg_sock_t *ready_sock;
-
-//	usr_args_t *usr_defs = data;
+	usr_args_t *data = usr;
 
 	faultload_op **usr_faultload = faultload;
 
@@ -265,18 +200,21 @@ int f_config(faultload_op **faultload, usr_args_t *data)
 	/**
 	 * send the faultload script to each declared host
 	 */
-	err = f_send_faultload(bcast_sock, usr_faultload);
+//	err = f_send_faultload(bcast_sock, usr_faultload);
 
-//	f_send_usr_args(usr_defs);
-
+	/**
+	 * wait until all hosts confirm the faultload receiving
+	 */
 //	f_wait_confirm();
 
-//	err = strncmp(data->counter, "remote", 6);
-//	if (err == 0)
-//		f_oper_remote();
+	/**
+	 * define the broadcast address of the selected device
+	 */
+	bcast_sock->addr.sin_addr.s_addr = f_get_broadcast(data->device);
 
+	/**
+	 * done with the configuration phase, go to operation phase
+	 */
+//	f_operation();
 	return 0;
-
-//error:
-//	exit(EXIT_FAILURE);
 }
