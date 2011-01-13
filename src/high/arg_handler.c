@@ -39,22 +39,18 @@
 #include "high_types.h"
 #include "lemon_parser.h"
 
-int f_arg_handler(usr_args_t *usr)
+faultload_op **f_load_faultload(char *fltld)
 {
-	int fdin;
 	int err;
+	int fdin;
 	char *source;
 	struct stat statbuf;
-	usr_args_t *data;// = malloc(sizeof(usr_args_t));
-
-	faultload_op **faultload, **faultload_pp;
-
-	data = usr;
+	faultload_op **temp;
 
 	/**
 	 * open faultload file for syntax checking
 	 */
-	fdin = open(data->faultload, O_RDONLY);
+	fdin = open(fltld, O_RDONLY);
 	if (fdin < 0)
 		goto error;
 
@@ -69,14 +65,34 @@ int f_arg_handler(usr_args_t *usr)
 	/**
 	 * check faultload syntax
 	 */
-	faultload_pp = faultload = faultload_parser(source);
+	temp = faultload_parser(source);
+
+	return temp;
+
+error:
+	close(fdin);
+	perror("Exiting: ");
+	exit(EXIT_FAILURE);
+}
+
+
+int f_arg_handler(usr_args_t *usr)
+{
+	int err;
+	usr_args_t *data = usr;
+
+	faultload_op **faultload, **faultload_pp;
+
+	/**
+	 * load faultload and check its syntax
+	 */
+	faultload_pp = faultload = f_load_faultload(data->faultload);
 	
 	/**
 	 * Parser error
 	 */
 	if (faultload == NULL) {
 		errno = -EAGAIN;
-		goto error; 
 	}
 
 	/**
@@ -102,9 +118,4 @@ int f_arg_handler(usr_args_t *usr)
 	err = f_config(faultload, data);
 
 	return 0;
-
-error:
-	close(fdin);
-	perror("Exiting: ");
-	exit(EXIT_FAILURE);
 }

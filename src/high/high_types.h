@@ -51,5 +51,4 @@ typedef struct faultload_extra {
 	faultload_op *partition_ips;
 } faultload_extra_t;
 
-
 #endif

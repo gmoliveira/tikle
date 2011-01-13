@@ -28,12 +28,35 @@
 #include "high_types.h"
 #include "../global_types.h"
 
+/**
+ * performs the configuration phase of the test campaign
+ */
+uint32_t f_get_broadcast(char *device);
+
+
+/**
+ * create a client socket during the configuration phase
+ */
+cfg_sock_t *f_create_sock_client(int port);
+
+
+/**
+ * create a server socket during the configuration phase
+ */
+cfg_sock_t *f_create_sock_server(int port);
+
+
+/**
+ * performs the configuration phase of the test campaign
+ */
 int f_config(faultload_op **faultload, usr_args_t *data);
+
 
 /**
  * checks the faultload and broadcast it
  */
 int f_arg_handler(usr_args_t *usr);
+
 
 /**
  * selects the default network device
