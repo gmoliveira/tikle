@@ -13,7 +13,7 @@ current work:
 
       - campaign results connected with gnuplot for better visualization.
 
-  * Create a simple update system
+  * ~~ Create a simple update system ~~
 
 frozen work:
   * create a tikle logo :-)
