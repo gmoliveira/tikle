@@ -1,0 +1,55 @@
+Index: pie/pie_core.c
+===================================================================
+--- pie/pie_core.c	(revision 85)
++++ pie/pie_core.c	(working copy)
+@@ -55,6 +55,35 @@
+                 kfree(_var);      \
+         }
+ 
++/**
++ * NIPQUAD* was deprecated in 2.6.35 and has been removed in 2.6.36.
++ */
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
++# define NIPQUAD(addr) \
++	((unsigned char *)&addr)[0], \
++	((unsigned char *)&addr)[1], \
++	((unsigned char *)&addr)[2], \
++	((unsigned char *)&addr)[3]
++# define NIPQUAD_FMT "%u.%u.%u.%u"
++#endif
++ 
++/**
++ * The Big Kernel Lock was removed in 2.6.37.
++ *
++ * TODO: Investigate if *lock_kernel() is really needed. Kernels which
++ * CONFIG_BLK is not present have *lock_kernel() defined as no-ops,
++ * therefore the use here must be revised.
++ */
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
++#include <linux/mutex.h>
++static DEFINE_MUTEX(tikle_mutex);
++# define tikle_lock() mutex_lock(&tikle_mutex)
++# define tikle_unlock() mutex_unlock(&tikle_mutex)
++#else
++# define tikle_lock() lock_kernel()
++# define tikle_unlock() unlock_kernel()
++#endif
++
+ int eof = 1;
+ /**
+  * Actions
+@@ -621,12 +650,12 @@
+ 	 * define flags of the thread and run socket
+ 	 * server as a daemon (run in background)
+ 	 */
+-	lock_kernel();
++	tikle_lock();
+ 	pie_sock->flag = 1;
+ 	current->flags |= PF_NOFREEZE;
+ 	daemonize("thread_sock");
+ 	allow_signal(SIGKILL);
+-	unlock_kernel();
++	tikle_unlock();
+ 
+ 	/*
+ 	 * socket creation
