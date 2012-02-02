@@ -29,7 +29,6 @@
 #include <linux/err.h> /* error control through errno */
 
 #include <linux/netdevice.h> /* SOCK_DGRAM, KERNEL_DS and others */
-#include <linux/smp_lock.h> /* (un)lock_kernel(); */
 #include <linux/in.h> /* sockaddr_in and other macros */
 
 #include "low_defs.h" /* tikle global definitions */
@@ -294,11 +293,11 @@ int f_config(void)
 	 * define flags of the thread and run socket
 	 * server as a daemon (run in background)
 	 */
-	lock_kernel();
+	f_lock_tikle();
 	current->flags |= PF_NOFREEZE;
 	daemonize("main thread");
 	allow_signal(SIGKILL);
-	unlock_kernel();
+	f_unlock_tikle();
 
 	/**
 	 * sock listener creation

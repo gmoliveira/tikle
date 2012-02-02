@@ -30,7 +30,6 @@
 #include <linux/proc_fs.h> /* /proc management functions */
 #include <linux/slab.h> /* kmalloc(); */
 #include <linux/kthread.h> /* kthread_run(); */
-#include <linux/smp_lock.h> /* lock_kernel(); and related stuff */
 #include <linux/sched.h> /* kill_pid(); */
 #include <linux/pid.h> /* struct pid header */
 
@@ -48,6 +47,13 @@ procfs_t *sysfs;
  * for main thread control
  */
 struct task_struct *main_thread;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+/**
+ * Tikle module mutex.
+ */
+struct mutex tikle_mutex;
+#endif
 
 /**
  * callback function for /proc/net/tikle/status
@@ -205,9 +211,9 @@ static void __exit f_exit(void)
 	 */
 /*	if (error == -EINTR) {
 		struct pid *temp = get_task_pid(main_thread, PIDTYPE_PID);
-		lock_kernel();
+		f_lock_tikle();
 		error = kill_pid(temp, SIGKILL, 1);
-		unlock_kernel();
+		f_unlock_tikle();
 
 		if (error < 0)
 			printk(KERN_ERR "error %d while killing kernel thread\n", -error);
