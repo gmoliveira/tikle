@@ -27,6 +27,24 @@
 
 #include "low_types.h"
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
+# include <linux/smp_lock.h>
+# define f_lock_tikle() lock_kernel()
+# define f_unlock_tikle() unlock_kernel()
+#else
+# include <linux/mutex.h>
+extern struct mutex tikle_mutex;
+# define f_lock_tikle() mutex_lock(&tikle_mutex)
+# define f_unlock_tikle() mutex_unlock(&tikle_mutex)
+
+# define NIPQUAD(addr) \
+	((unsigned char *)&addr)[0], \
+	((unsigned char *)&addr)[1], \
+	((unsigned char *)&addr)[2], \
+	((unsigned char *)&addr)[3]
+# define NIPQUAD_FMT "%u.%u.%u.%u"
+#endif
+
 //#include <linux/sched.h> /* struct task_struct */
 //#include <linux/kthread.h>
 /**
