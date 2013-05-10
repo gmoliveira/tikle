@@ -1,12 +1,12 @@
 CC = gcc
 RE2C = re2c
 CFLAGS = -Wall -ggdb -I.. -c
-RE2C_FLAGS = 
+RE2C_FLAGS =
 LEMON_FLAGS = -c -q
 LEMON = ./lemon
 
 dispatcher: parser.o scanner.o main.o
-	$(CC) -Wall -o $@ $?
+	$(CC) -Wall -o $@ $?  -Wunused-variable
 
 all: parser
 
@@ -20,7 +20,7 @@ parser.o: parser.c
 	cat lemon_parser.c >> parser.c
 	$(CC) $(CFLAGS) $? 
 parser.c: lemon
-	$(LEMON) $(LEMON_FLAGS) parser.y
+	$(LEMON) $(LEMON_FLAGS) parser.y 
 lemon: lemon.o
 	$(CC) -Wall -o $@ $?
 lemon.o:
