@@ -1,0 +1,1 @@
+cmd_/root/kernel-3.8/tikle.ko := ld -r -m elf_x86_64 -T /usr/src/kernels/3.8.9-200.fc18.x86_64/scripts/module-common.lds --build-id  -o /root/kernel-3.8/tikle.ko /root/kernel-3.8/tikle.o /root/kernel-3.8/tikle.mod.o
