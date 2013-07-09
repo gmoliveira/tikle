@@ -1,25 +1,9 @@
-###############################
-# Experimento com 2 partições #
-###############################
-#fusca passat dkv porsche
-@declare {10.0.0.1, 10.0.0.2, 10.0.0.3, 10.0.0.4};
+@declare {192.168.56.102};
 
 START:
-  after (10s) do
-    partition {10.0.0.1, 10.0.0.2} {10.0.0.3, 10.0.0.4};
-  end
-  after (20s) do
-    partition {10.0.0.1, 10.0.0.2, 10.0.0.3, 10.0.0.4};
-  end
-  after (30s) do
-    partition {10.0.0.1, 10.0.0.3} {10.0.0.2, 10.0.0.4};
-  end
-  after (40s) do
-    partition {10.0.0.1, 10.0.0.2, 10.0.0.3, 10.0.0.4};
-  end
-  after (50s) do
-    partition {10.0.0.2, 10.0.0.3} {10.0.0.1, 10.0.0.4};
+  after (2s) do
+    partition {192.168.56.102};
   end
 
 STOP:
-  after (60s);
+  after (4s);

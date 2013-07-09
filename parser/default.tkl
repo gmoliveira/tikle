@@ -1,11 +1,9 @@
 @declare {192.168.56.102};
 
 START:
-  after (5s) do
+  after (2s) do
     partition {192.168.56.102};
   end
-  after (10s) do
-    partition {192.168.56.102};
-  end
+
 STOP:
-  after (15s);
+  after (4s);

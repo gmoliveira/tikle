@@ -61,10 +61,10 @@
 		default:                                                                                             \
 			sendto(pie_sock.s_cli, &faultload_p->op_value[(n)].num, sizeof(unsigned long), 0,                    \
 				(struct sockaddr *)&pie_sock.addr_cli, sizeof(pie_sock.addr_cli));                           \
-			break;                                                                                           \
+			break;                                                        					\
 	}
 
-#define SHOW_OP_INFO(n) \
+#define SHOW_OP_INFO(n) 												\
 	switch (faultload_p->op_type[(n)]) {                                               \
 		case STRING:                                                                   \
 			printf("op: %s (len: %d) [%s] | ",                                         \
@@ -312,7 +312,7 @@ int main(int argc, char **argv)
 		faultload++;
 	} 
 	
-	/* Sending opcode information */	
+	/* Sending opcode information */
 	while (faultload && *faultload) {
 		faultload_p = *faultload;
 		
@@ -321,6 +321,7 @@ int main(int argc, char **argv)
 			pie_sock.addr_cli.sin_addr.s_addr = (in_addr_t) faultload_p->op_value[0].num;
 			
 			/* Send the number of ips envolved in the experiment */
+			printf("### 1 ###\n");
 			sendto(pie_sock.s_cli, &partition_num_ips, sizeof(int), 0,
 				(struct sockaddr *)&pie_sock.addr_cli, sizeof(pie_sock.addr_cli));
 		} else {
@@ -341,14 +342,19 @@ int main(int argc, char **argv)
 
 					if (partition_ips == *(faultload-1)) {
 
-						sendto(pie_sock.s_cli, &partition_ips->op_value[0].array.nums[i], sizeof(int), 0,
-							(struct sockaddr *)&pie_sock.addr_cli, sizeof(pie_sock.addr_cli));
 						/* 
 						 * Send the number of ips envolved in the experiment
 						 * (i.e. the ones listed in @declare)
 						 */
+
+						printf("### 2 ###\n");
 						sendto(pie_sock.s_cli, &partition_num_ips, sizeof(int), 0,
 							(struct sockaddr *)&pie_sock.addr_cli, sizeof(pie_sock.addr_cli));
+
+						printf("### 3 ###\n");
+						sendto(pie_sock.s_cli, &partition_ips->op_value[0].array.nums[i], sizeof(int), 0,
+							(struct sockaddr *)&pie_sock.addr_cli, sizeof(pie_sock.addr_cli));
+
 							
 						/* 
 						 * Send the stations IP address to avoid the requirement of a
@@ -501,7 +507,7 @@ int main(int argc, char **argv)
 	sendto(pie_sock.s_cli, "pie:start", sizeof("pie:start"), 0,
 		(struct sockaddr *)&pie_sock.addr_cli, sizeof(pie_sock.addr_cli));
 
-	log_finalize(partition_num_ips, (num_events+1));
+//	log_finalize(partition_num_ips, (num_events+1));
 
 	if (partition_ips) {
 		free(partition_ips->op_type);

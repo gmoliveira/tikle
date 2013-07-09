@@ -1,0 +1,10 @@
+@192.168.56.102
+start:
+  after (2s) do
+    tcp drop 5%;
+  end
+  after(4s) do
+    udp drop 3%;
+  end
+stop:
+  after (6s);
