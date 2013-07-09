@@ -48,12 +48,14 @@
 #define PORT_CONNECT 21508
 #define PORT_LOGGING 24187
 
+#define INT32_MAX (2147483647)
 #define NUM_FAULTLOAD_OP 10
 
 #define SECURE_FREE(_var) \
         if (_var) {           \
                 kfree(_var);      \
         }
+//static uint32_t f_get_random_bytes(uint32_t *, uint32_t *, uint32_t *);
 
 static DEFINE_MUTEX(fs_mutex);
 
@@ -174,6 +176,15 @@ struct timer_event *event;
 
 struct nf_hook_ops pre_hook, post_hook;
 
+/**
+ *  * Opcode names
+ *   */
+static const char *op_names[] = {
+        "COMMAND", "AFTER", "WHILE", "HOST", "IF", "ELSE",
+        "END_IF", "END", "SET", "FOREACH", "PARTITION", "DECLARE"
+};
+
+
 struct data_listen {
 	int flag;
 	struct task_struct *t_func;
@@ -188,16 +199,16 @@ faultload_op faultload[30];
 unsigned long partition_ips[30];
 
 unsigned long *log_counters = NULL;
-int log_size, line_size;
+//int log_size, line_size;
 
+//static uint32_t seed1, seed2, seed3;
 
-int num_ips, line_size, active, meuip;
+int num_ips, meuip; //active
 unsigned int num_events = 0;
 static unsigned int trigger_flag = 0;
 MODULE_AUTHOR("c2zlabs");
-
 MODULE_DESCRIPTION("Partitioning Injection Environment");
-MODULE_LICENSE("GPLv3");
+MODULE_LICENSE("GPL");
 
 
 /**
@@ -315,27 +326,24 @@ unsigned int f_pre_hook(unsigned int hooknum,
 	int i = 0, array, position;
 	struct sk_buff *sb = pskb;
 
-//	if (active == 0) {
-
-
-//		if (event[trigger_flag].trigger_state != 1) {
-//			for (i = 0; log_counters[i+2] && i < log_size; i+=line_size) {
-//				if (log_counters[i+2] == ipip_hdr(sb)->saddr) {
-//					printk(KERN_INFO "host encontrado na posicao %d\n", i);
-//					break;
-//				} else {
-//					continue;
-//				}
+	if (event[trigger_flag].trigger_state != 1) {
+		return NF_ACCEPT;
+	}
+//		for (i = 0; log_counters[i+2] && i < log_size; i+=line_size) {
+//			if (log_counters[i+2] == ipip_hdr(sb)->saddr) {
+//				printk(KERN_INFO "host encontrado na posicao %d\n", i);
+//				break;
+//			} else {
+//				continue;
 //			}
-//			log_counters[i+0] = 0;
-//			log_counters[i+1] = ipip_hdr(sb)->daddr;
-//			log_counters[i+2] = ipip_hdr(sb)->saddr;
-//			log_counters[i+4*trigger_flag+3] = 0;
-//			log_counters[i+4*trigger_flag+4] = trigger_flag;
-//			log_counters[i+4*trigger_flag+5] += 1;
-
-//			return NF_ACCEPT;
 //		}
+//		log_counters[i+0] = 0;
+//		log_counters[i+1] = ipip_hdr(sb)->daddr;
+//		log_counters[i+2] = ipip_hdr(sb)->saddr;
+//		log_counters[i+4*trigger_flag+3] = 0;
+//		log_counters[i+4*trigger_flag+4] = trigger_flag;
+//		log_counters[i+4*trigger_flag+5] += 1;
+//		return NF_ACCEPT;
 //	}
 
 
@@ -347,7 +355,7 @@ unsigned int f_pre_hook(unsigned int hooknum,
 //			continue;
 //		}
 //	}
-	log_counters[i+0] = 0;
+//	log_counters[i+0] = 0;
 //	log_counters[i+1] = ipip_hdr(sb)->daddr;
 //	log_counters[i+2] = ipip_hdr(sb)->saddr;
 //	log_counters[i+4*(trigger_flag+1)+3] = 0;
@@ -356,30 +364,161 @@ unsigned int f_pre_hook(unsigned int hooknum,
 
 	
 	i = event[trigger_flag].trigger_id;
+
 	do {
-		/*
-		 * opcode handlers
-		 */
-		switch (faultload[i].opcode) {
-			case PARTITION:
+
+//                printk(KERN_INFO "ACTION=%lu ; i=%d ; opcode: %d (%s) ; next_op=%d\n",
+//			faultload[i].op_value[0].num, i, faultload[i].opcode, op_names[faultload[i].opcode], faultload[i].next_op);
+               
+                /* Opcode handlers */
+                switch (faultload[i].opcode) {
+                        case HOST:
+                        case END:
+                        case END_IF:
+                        case DECLARE:
+                                /* Never handled here */
+                                break;
+                        case ELSE:
+                                /* The if-block reached the ELSE,
+                                 * then skip to out of end if
+                                */
+                                /* i = faultload[i].op_num; */
+                                break;
+                        case COMMAND:
+
+                                /*
+                                 * e.g.
+                                 * tcp drop progressive 10%;
+                                 *
+                                 * tcp: faultload[i].protocol = TCP_PROTOCOL
+                                 * drop: faultload[i].op_value[0].num
+                                 * Possible values:
+                                 *      ACT_DROP (1)
+                                 *      ACT_DUPLICATE (2)
+                                 *      ACT_DELAY (3)
+                                 *
+                                 * progressive: faultload[i].extended_value
+                                 * 10: faultload[i].op_value[1].num
+                                 */
+				switch (faultload[i].op_value[0].num) {
+					//case ACT_DELAY:
+						//NF_QUEUE;
+					case ACT_DROP:
+						printk(KERN_INFO "DROP\n");
+						return NF_DROP;
+					//case ACT_DUPLICATE:
+					//	duplicate_sb = skb_copy(pskb, GFP_ATOMIC);
+					//if (duplicate_sb) {
+					//	okfn(duplicate_sb);
+					//}
+					return NF_ACCEPT;
+				}
+				break;
+                        case AFTER:
+                                /*
+                                 * e.g.
+                                 * after (10p) do
+                                 *   ...
+                                 * end
+                                 *
+                                 * 10: faultload[i].op_value[0]
+                                 *  p: faultload[i].occur_type
+                                 * Possible values:
+                                 *   TEMPORAL
+                                 *   NPACKETS
+                                 *   PERCET
+                                 *   NONE (only the number was specified)
+                                 */
+                                break;
+                        case WHILE:
+                                /*
+                                 * e.g.
+                                 * while (10s) do
+                                 *   ...
+                                 * end
+                                 *
+                                 * 10: faultload[i].op_value[0]
+                                 *  s: faultload[i].occur_type
+                                 * Possible values:
+                                 *   TEMPORAL
+                                 *   NPACKETS
+                                 *   PERCET
+                                 *   NONE (only the number was specified)
+                                 */
+                                break;
+                        case IF:
+                                /*
+                                 * e.g.
+                                 * if (%ip is equal 127.0.0.1) then
+                                 *   ...
+                                 * end if
+                                 *
+                                 * %ip: faultload[i].op_value[0]
+                                 *   In this case: op_type[0] == VAR
+                                 *
+                                 * 'is equal': faultload[i].extended_value
+                                 *
+                                 * Possible operators:
+                                 *              'is equal'     = 1
+                                 *              'is not equal' = 2
+                                 *
+                                 * 127.0.0.1: faultload[i].op_value[1] (inet_addr)
+                                 *            faultload[i].op_type[1] == NUMBER
+                                 */
+                                /*
+                                 * if (!(skip = tikle_handler_if(faultload[i]))) {
+                                 *              i = skip;
+                                 * }
+                                 */
+                                break;
+                        case SET:
+                                /*
+                                 * e.g.
+                                 * set 127.0.0.1 -> FLAG
+                                 *
+                                 * 127.0.0.1: faultload[i].op_value[0] (inet_addr)
+                                 *            faultload[i].op_type[0] == NUMBER
+                                 *
+                                 * FLAG: faultload[i].op_value[1]
+                                 *       faultload[i].op_type[1] == STRING
+                                 */
+                                break;
+                        case FOREACH:
+                                /*
+                                 * e.g.
+                                 * for each do
+                                 *   tcp: drop 20%;
+                                 * end
+                                 */
+                                break;
+                        case PARTITION:
+                                /*
+                                 * e.g.
+                                 * PARTITION BETWEEN A AND B
+                                 *
+                                 * A: faultload[i].op_value[0]
+                                 *    faultload[i].op_type[0] == STRING
+                                 *
+                                 * B: faultload[i].op_value[1]
+                                 *    faultload[i].op_type[0] == STRING
+                                 */
+
 				/*
 				 * loop into partitions to identify allowed communications
 				 */
+				printk(KERN_INFO "PARTITION\n");
 				for (array = 0; array < faultload[i].num_ops; array++) {
 					for (position = 0; position < faultload[i].op_value[array].array.count; position++) {
-						if (faultload[i].op_value[array].array.nums[position] == ipip_hdr(sb)->saddr) {
+						if (faultload[i].op_value[array].array.nums[position] == ipip_hdr(sb)->saddr)
 							array_remote = array;
-						} else if (faultload[i].op_value[array].array.nums[position] == meuip) {
-
+						else if (faultload[i].op_value[array].array.nums[position] == meuip)
 							array_local = array;
-						}
 					}
 				}
-				if (array_local == array_remote) {
+				if (array_local == array_remote)
 					return NF_ACCEPT;
-				} else {
+				else 
 					return NF_DROP;
-				}
 				break;
 			default:
 				break;
@@ -396,39 +535,39 @@ unsigned int f_post_hook(unsigned int hooknum,
 		int (*okfn)(struct sk_buff *))
 {
 
-	if (active == 0) {
-		return NF_ACCEPT;
-	}
+//	if (active == 0) {
+//		return NF_ACCEPT;
+//	}
 
 	return NF_ACCEPT;
 }
 
 
-int log_finalize(void)
-{
-	int err;
-	struct socket *sock_log;
-	struct sockaddr_in addr_log;
-
-	if ((err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock_log)) < 0)
-		printk(KERN_INFO "error whilie log socket creation. erro: %d\n", err);
-
-	memset(&addr_log, 0, sizeof(struct sockaddr));
-	addr_log.sin_family = AF_INET;
-	addr_log.sin_addr.s_addr = pie_sock->addr_recv.sin_addr.s_addr;
-	addr_log.sin_port = htons(PORT_LOGGING);
-
-	if ((err = sock_log->ops->connect(sock_log, (struct sockaddr *)&addr_log, sizeof(struct sockaddr), 0)) < 0) {
-		printk(KERN_INFO "error while connecting socket. erro: %d\n", err);
-		sock_release(sock_log);
-		sock_log = NULL;
-	}
-
-	printk("enviando logs\n");
-	send_msg(sock_log, &addr_log, log_counters, sizeof(unsigned long) * log_size);
-
-	return 0;
-}
+//int log_finalize(void)
+//{
+//	int err;
+//	struct socket *sock_log;
+//	struct sockaddr_in addr_log;
+//
+//	if ((err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &sock_log)) < 0)
+//		printk(KERN_INFO "error whilie log socket creation. erro: %d\n", err);
+//
+////	memset(&addr_log, 0, sizeof(struct sockaddr));
+//	addr_log.sin_family = AF_INET;
+//	addr_log.sin_addr.s_addr = pie_sock->addr_recv.sin_addr.s_addr;
+//	addr_log.sin_port = htons(PORT_LOGGING);
+//
+//	if ((err = sock_log->ops->connect(sock_log, (struct sockaddr *)&addr_log, sizeof(struct sockaddr), 0)) < 0) {
+//		printk(KERN_INFO "error while connecting socket. erro: %d\n", err);
+//		sock_release(sock_log);
+//		sock_log = NULL;
+//	}
+//
+//	printk("enviando logs\n");
+//	send_msg(sock_log, &addr_log, log_counters, sizeof(unsigned long) * log_size);
+//
+//	return 0;
+//}
 
 
 void flag_handler(unsigned long id)
@@ -455,8 +594,8 @@ void flag_handler(unsigned long id)
 
 	if (id == event[trigger_flag].trigger_id) {
 		printk(KERN_INFO "End of hooks\n");
-		active = 1;
-		log_finalize();
+		//active = 1;
+		//log_finalize();
 	}
 }
 
@@ -518,7 +657,7 @@ int event_handler(void)
 	nf_register_hook(&pre_hook);
 	nf_register_hook(&post_hook);
 	eof = 0;
-	active = 0;
+//	active = 0;
 
 	return 0;
 }
@@ -529,6 +668,10 @@ static int f_main_sock(void)
 	int err, size = -1, trigger_count = 0, i = 0;
 	static int count = 0;
 	char auth_msg[12];
+
+
+
+	//printk(KERN_INFO, "foo %0x%x\n", f_get_random_bytes(&seed1, &seed2, &seed3));
 
 	/*
 	 * define flags of the thread and run socket
@@ -553,6 +696,7 @@ static int f_main_sock(void)
 	 * listening on port 12608
 	 * connecting on port 21508
 	 */
+
 	if (((err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &pie_sock->s_recv)) < 0) ||
 		((err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_UDP, &pie_sock->s_send)) < 0)) {
 		pie_sock->t_func = NULL;
@@ -576,8 +720,6 @@ static int f_main_sock(void)
 
 	memset(faultload, 0, sizeof(faultload));
 
-	size = recv_msg(pie_sock->s_recv, &pie_sock->addr_recv, &meuip, sizeof(int));
-
 	size = recv_msg(pie_sock->s_recv, &pie_sock->addr_recv, &num_ips, sizeof(int));
 
 	if (size < 0) {
@@ -588,8 +730,12 @@ static int f_main_sock(void)
 		printk(KERN_INFO "num_ips = %d\n", num_ips);
 	}
 	if (num_ips) {
+
+		size = recv_msg(pie_sock->s_recv, &pie_sock->addr_recv, &meuip, sizeof(int));
+
 		size = recv_msg(pie_sock->s_recv, &pie_sock->addr_recv,
 				&partition_ips, sizeof(unsigned long) * num_ips);
+
 
 		if (size < 0) {
 			printk(KERN_INFO "error %d while getting datagram\n", size);
@@ -722,7 +868,7 @@ static int f_main_sock(void)
 		}
 		
 		if (signal_pending(current)) {
-			printk(KERN_INFO "signal_peding returned true\n");
+			printk(KERN_INFO "signal_pending returned true\n");
 			goto next;
 		}
 		
@@ -791,14 +937,14 @@ next:
 			}
 		} while (faultload[i++].block_type == 0);
 
-		if (num_ips) {
-			line_size = 4 * (num_events) + 3;
-			log_size = (num_ips-1) * line_size;
-			log_counters = kcalloc(log_size, sizeof(unsigned long), GFP_KERNEL | GFP_ATOMIC);
+		//if (num_ips) {
+		//	line_size = 4 * (num_events) + 3;
+		//	log_size = (num_ips-1) * line_size;
+		//	log_counters = kcalloc(log_size, sizeof(unsigned long), GFP_KERNEL | GFP_ATOMIC);
 
-			if (log_counters == NULL)
-				return 0;
-		}
+		//	if (log_counters == NULL)
+		//		return 0;
+		//}
       	
 		event_handler();
 	} else { 
@@ -808,6 +954,15 @@ next:
 	return 0;
 
 }
+
+
+//static uint32_t f_get_random_bytes(uint32_t * s1, uint32_t * s2, uint32_t * s3)
+//{
+//	*s1 = (((*s1 & 0xFFFFFFFE) << 12) ^ (((*s1 << 13) ^ *s1) >> 19));
+//	*s2 = (((*s2 & 0xFFFFFFF8) << 4) ^ (((*s2 << 2) ^ *s2) >> 25));
+//	*s3 = (((*s3 & 0xFFFFFFF0) << 17) ^ (((*s3 << 3) ^ *s3) >> 11));
+//	return *s1 ^ *s2 ^ *s3;
+//}
 
 
 /**
@@ -822,6 +977,15 @@ static int __init pie_init(void)
 {
 	int err = 0;
 
+//	get_random_bytes(&seed1, sizeof(seed1));
+//	get_random_bytes(&seed2, sizeof(seed2));
+//	get_random_bytes(&seed3, sizeof(seed3));
+
+//	printk(KERN_INFO "seeds are 0x%x 0x%x 0x%x\n", seed1, seed2, seed3);
+
+//	for (; err < 10; err++)
+//		printk(KERN_INFO "RESULT %ld\n", f_get_random_bytes(&seed1, &seed2, &seed3) / ( INT32_MAX / 500 + 1));
+//	err = 0;
 	/*
 	 * preparing thread to
 	 * init socket stuff
