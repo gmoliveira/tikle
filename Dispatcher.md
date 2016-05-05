@@ -1,0 +1,5 @@
+# Introduction #
+In the whole system architecture dispatcher get the system prepared to start execution.
+
+# Details #
+Currently disptcher operates under a three-hand-shake-based model. Before the test begins, dispatcher sent the fault load specification to all host stations by unicast. Then each host station answer to dispatcher with a "data received" message. Thus dispatcher sents a "start testing" message to all host stations by its broadcast address to ensure data delivery in them simultaneously. So, this starting process grant a synchronized begining of the whole testing scenario. After the execution finishes all log data produced by host stations are sent to the dispatcher. Finally dispatcher performs data analysis over all information received from host stations in order to assess the integrity of the testing execution and outputs a report to the test manager.
